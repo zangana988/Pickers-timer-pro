@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Picker Timers</title>
+<style>
+:root{--bg:#eef0ee;--card:#fff;--ink:#1b2220;--mute:#66706c;--line:#d5dad7;--ok:#168a3e;--okbg:#e3f4e8;--bad:#c9261b;--badbg:#fde7e5;--btn:#1b2220;--btnink:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141816;--card:#1e2421;--ink:#eef2ef;--mute:#9aa6a0;--line:#2f3833;--ok:#43c46e;--okbg:#17301f;--bad:#ff6b5e;--badbg:#3a1a17;--btn:#eef2ef;--btnink:#141816}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}
+#active{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+#done{max-width:720px}
+h1{font-size:22px;margin:4px 0 14px}
+h2{font-size:16px;margin:24px 0 8px;color:var(--mute)}
+form{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+form .wide{grid-column:1/-1}
+label{font-size:13px;color:var(--mute);display:flex;flex-direction:column;gap:4px}
+input,select{font:inherit;font-size:17px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:100%}
+button{font:inherit;font-weight:600;border:0;border-radius:8px;padding:12px 16px;background:var(--btn);color:var(--btnink);cursor:pointer}
+button.ghost{background:transparent;color:var(--mute);border:1px solid var(--line)}
+.t{border-radius:12px;padding:12px;border:2px solid var(--ok);background:var(--okbg)}
+.t.red{border-color:var(--bad);background:var(--badbg)}
+.t.late{animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.6}}
+@media (prefers-reduced-motion:reduce){.t.late{animation:none}}
+.top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.name{font-size:17px;font-weight:700}
+.meta{font-size:14px;color:var(--mute)}
+.clock{font-size:clamp(38px,11vw,54px);font-weight:700;font-variant-numeric:tabular-nums;color:var(--ok);line-height:1.1;margin:6px 0}
+.red .clock{color:var(--bad)}
+.bar{height:10px;background:var(--line);border-radius:5px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ok);width:0}
+.red .bar i{background:var(--bad)}
+.row{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px;flex-wrap:wrap}
+.h{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.h b.l{color:var(--bad)}.h b.g{color:var(--ok)}
+.empty{color:var(--mute);padding:16px 0}
+details{margin-top:8px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+summary{cursor:pointer;font-weight:600}
+.rs{display:flex;gap:8px;margin:10px 0}
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:20px;padding:2px 2px 2px 12px;margin:0 6px 6px 0}
+.chip button{padding:2px 10px;background:transparent;color:var(--mute);font-size:18px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+th{color:var(--mute);font-weight:600}
+.sc{overflow-x:auto}
+.seg{display:flex;gap:8px;margin-bottom:8px}
+textarea{width:100%;margin-top:8px;font:13px monospace;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px}
+</style>
+</head>
+<body>
+<main>
+<h1>Picker timers</h1>
+<div id="wn" class="meta" hidden style="color:var(--bad);margin-bottom:8px"></div>
+<form id="cf" hidden><label class="wide">First time on this phone: paste your Firebase settings (copy the whole block from the Firebase website)<textarea id="ct" rows="7"></textarea></label><button class="wide" type="submit">Save settings</button></form>
+<form id="lg" hidden><label class="wide">Email<input id="le" type="email" autocomplete="username" required></label><label class="wide">Password<input id="lp" type="password" autocomplete="current-password" required></label><button class="wide" type="submit">Sign in</button></form>
+<div id="lk" class="row" hidden><button class="ghost" id="lreg" type="button">First time? Create my password</button><button class="ghost" id="lfp" type="button">Forgot password</button></div>
+<form id="rg" hidden><label class="wide">Your email (the one the manager added)<input id="re" type="email" autocomplete="username" required></label><label class="wide">Choose your password (8 or more characters)<input id="rp" type="password" autocomplete="new-password" required></label><label class="wide">Repeat the password<input id="rq" type="password" autocomplete="new-password" required></label><button class="wide" type="submit">Create my account</button><button class="wide ghost" id="rbk" type="button">Back to sign in</button></form>
+<div id="gt" hidden><div id="gm" class="meta" style="margin:8px 0"></div><div class="row"><button id="gc" type="button">Check again</button><button class="ghost" id="gr" type="button">Resend email</button><button class="ghost" id="gs" type="button">Sign out</button><button class="ghost" id="gpb" type="button" hidden>Open platform console</button></div></div>
+<div id="ap" hidden>
+<form id="f">
+  <label class="wide">Picker<select id="n" required></select></label>
+  <label>Order number<input id="o" autocomplete="off" placeholder="e.g. 10452"></label>
+  <label>Number of boxes<input id="b" type="number" min="0" value="0" inputmode="numeric"></label>
+  <label>Box weight (just estimate)<select id="t"><option value="0.7">Mostly light</option><option value="1" selected>Mixed</option><option value="1.4">Mostly heavy</option></select></label>
+  <label>Minutes allowed (change if needed)<input id="m" type="number" min="1" max="600" value="15" required inputmode="numeric"></label>
+  <div class="wide meta" id="sg">Enter the boxes to get a suggested time.</div>
+  <button class="wide" type="submit">Start timer</button>
+</form>
+<details id="mg"><summary>Manage picker list</summary><div class="rs"><input id="rn" placeholder="Add picker name" autocomplete="off"><button type="button" id="ra">Add</button></div><div id="rl"></div></details>
+<h2 id="cnt">In progress</h2>
+<div id="active"></div>
+<h2>Finished today</h2>
+<div id="done"></div>
+<h2>Picker statistics</h2>
+<div class="seg"><button type="button" data-p="3">Last 3 months</button><button type="button" data-p="6">Last 6 months</button></div>
+<div id="st"></div>
+<div class="row"><button type="button" id="cp">Copy data for Excel</button><button type="button" class="ghost" id="dl">Download CSV</button></div>
+<textarea id="ta" rows="8" readonly hidden></textarea>
+<div class="row"><button class="ghost" id="so" type="button">Sign out</button></div>
+</div>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// PASTE YOUR FIREBASE SETTINGS HERE (Firebase console > Project settings > Your apps > Web app)
+var FIREBASE_CONFIG={apiKey:"AIzaSyCzS3Szv_JcVMYGQFlz3VmESNLwW1xiL0E",authDomain:"pickers-timer.firebaseapp.com",projectId:"pickers-timer",appId:"1:928812160632:web:eed8ef63a89f7f9f2e3f8d"};
+try{var sv=JSON.parse(localStorage.getItem("fbcfg"));if(sv&&sv.projectId)FIREBASE_CONFIG=sv}catch(e){}
+var KEY="pickerTimers.v1",S={active:[],done:[]};
+
+if(!S.roster)S.roster=[];
+function saveRoster(){if(DB)DB.doc("app/roster").set({list:S.roster}).catch(dbe)}
+function save(){}
+function $(i){return document.getElementById(i)}
+function pad(n){return String(n).padStart(2,"0")}
+function fmt(ms){var s=Math.floor(Math.abs(ms)/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60);return (h?h+":"+pad(m):pad(m))+":"+pad(s%60)}
+function tm(t){return new Date(t).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+var PLATFORM="mohammedmedht1@gmail.com",RAW=null,CID=null,ROLE=null,COMP={};
+var CFG={cart:120,setup:105,walk:20,handle:30,buf:15,lead:2,idle:2};
+var PEOPLE={},PROLE={};
+function onRole(fn){var f=function(){fn(firebase.auth().currentUser)};firebase.auth().onAuthStateChanged(f);window.addEventListener("rolechange",f)}
+function applyBrand(){var t=COMP.name||"Picker timers";document.title=t+" · Picker timers";var h=document.querySelector("main h1");if(h)h.textContent=t}
+function who(e){if(!e)return "unknown";var l=String(e).toLowerCase(),cu=firebase.auth().currentUser,n=PEOPLE[l]||String(e).split("@")[0],r=(cu&&(cu.email||"").toLowerCase()===l)?ROLE:PROLE[l];return n+(r==="owner"?" (Manager)":r==="display"?" (Display)":" (Supervisor)")}
+function paintWho(){var d=$("whoami"),u=firebase.auth().currentUser;if(d&&u)d.textContent="Signed in: "+who(u.email)}
+function me(){var u=firebase.auth().currentUser;return u?u.email:""}
+function byline(a){return (a.by?"Assigned by "+who(a.by):"")+(a.doneBy?(a.by?" · ":"")+"Finished by "+who(a.doneBy):"")}
+function lg(act,det){
+  var u=firebase.auth().currentUser;if(!DB||!u||!CID)return;
+  var now=Date.now();
+  DB.doc("log/"+dayStr(new Date(now))).set({items:firebase.firestore.FieldValue.arrayUnion({at:now,by:u.email,act:act,det:det||""})},{merge:true}).catch(function(e){warn("History not saved: "+((e&&e.message)||e))});
+}
+$("f").onsubmit=function(e){
+  e.preventDefault();
+  var c=boxes();
+  var o={id:Date.now(),name:$("n").value.trim(),order:$("o").value.trim(),mins:+$("m").value,start:Date.now(),boxes:c[0],est:est(c),by:me()};
+  if(!DB){warn("Not connected. Check your internet and sign in.");return}
+  DB.doc("active/"+o.id).set(o).catch(dbe);
+  $("o").value="";$("b").value=0;$("m").value=15;upd();save();render();
+};
+function finish(id){
+  var i=S.active.findIndex(function(a){return a.id===id});
+  if(i<0)return;
+  if(!DB||fin[id])return;fin[id]=1;
+  var a=Object.assign({},S.active[i]);a.end=Date.now();a.doneBy=me();
+  var ref=DB.doc("hist/"+dayStr(new Date(a.end))+"_"+hk(a.name));
+  ref.get().then(function(s){var it=s.exists?(s.data().items||[]).slice():[];it.push(a);return ref.set({day:dayStr(new Date(a.end)),name:a.name,items:it})}).then(function(){return DB.doc("active/"+id).delete()}).catch(function(e){delete fin[id];dbe(e)});
+}
+function cancel(id){
+  if(!confirm("Remove this timer without saving it?"))return;
+  if(DB)DB.doc("active/"+id).delete().catch(dbe);
+}
+
+$("active").onclick=function(e){
+  var b=e.target.closest("button");if(!b)return;
+  var id=+b.dataset.id;b.dataset.a==="done"?finish(id):cancel(id);
+};
+function render(){
+  fillSel();var now=Date.now(),h="";
+  var nl=0;
+  S.active.slice().sort(function(x,y){return (x.start+x.mins*60000)-(y.start+y.mins*60000)}).forEach(function(a){
+    var tot=a.mins*60000,left=tot-(now-a.start),late=left<0;
+    var red=late||left<=tot*0.2;if(red)nl++;
+    var pct=Math.min(100,Math.max(0,(now-a.start)/tot*100));
+    h+='<div class="t'+(red?" red":"")+(late?" late":"")+'"><div class="top"><span class="name">'+esc(a.name)+'</span><span class="meta">'+(a.order?"Order "+esc(a.order):"")+(a.boxes?(a.order?" · ":"")+a.boxes+" boxes":"")+'</span></div>'
+    +'<div class="clock">'+(late?"+":"")+fmt(left)+'</div>'
+    +'<div class="bar"><i style="width:'+pct+'%"></i></div>'
+    +'<div class="row"><span class="meta">Started '+tm(a.start)+' · Given '+a.mins+' min'+(late?" · OVER TIME":"")+'</span></div>'+(a.by?'<div class="meta">Assigned by '+esc(who(a.by))+'</div>':'')
+    +'<div class="row"><button data-a="done" data-id="'+a.id+'">Finished order</button><button class="ghost" data-a="x" data-id="'+a.id+'">Remove</button></div></div>';
+  });
+  $("active").innerHTML=h||'<div class="empty">No one is picking right now. Start a timer above.</div>';
+  $("cnt").textContent="In progress ("+S.active.length+(nl?", "+nl+" red":"")+")";
+  var d="";
+  var t0=new Date().setHours(0,0,0,0);S.done.filter(function(a){return a.end>=t0}).forEach(function(a){
+    var took=a.end-a.start,over=took>a.mins*60000;
+    d+='<div class="h"><span>'+esc(a.name)+(a.order?" · #"+esc(a.order):"")+(a.boxes?" · "+a.boxes+" boxes":"")+'<br><span class="meta">'+tm(a.start)+" to "+tm(a.end)+" · given "+a.mins+' min · '+(over?fmt(took-a.mins*60000)+" over":fmt(a.mins*60000-took)+" early")+(byline(a)?'<br>'+esc(byline(a)):'')+'</span></span><b class="'+(over?"l":"g")+'">'+fmt(took)+'</b></div>';
+  });
+  $("done").innerHTML=d||'<div class="empty">Finished orders appear here.</div>';
+}
+var lastKey=null;
+function fillSel(){
+  var busy=S.active.map(function(a){return a.name}),av=S.roster.filter(function(n){return busy.indexOf(n)<0}),key=av.join("|")+"#"+S.roster.length;
+  if(key===lastKey)return;lastKey=key;
+  var s=$("n");
+  s.innerHTML=av.length?'<option value="">Choose picker</option>'+av.map(function(n){return '<option>'+esc(n)+'</option>'}).join(""):'<option value="">'+(S.roster.length?"Everyone is busy":"Add pickers in the list below first")+'</option>';
+}
+function rr(){
+  $("rl").innerHTML=S.roster.map(function(n,i){return '<span class="chip">'+esc(n)+'<button type="button" data-i="'+i+'" aria-label="Remove '+esc(n)+'">×</button></span>'}).join("");
+  if(!S.roster.length)$("mg").open=true;
+  lastKey=null;fillSel();
+}
+function addP(){
+  var v=$("rn").value.trim();if(!v)return;
+  if(S.roster.indexOf(v)<0)S.roster.push(v);
+  S.roster.sort(function(a,b){return a.localeCompare(b)});
+  $("rn").value="";saveRoster();rr();$("rn").focus();
+}
+$("ra").onclick=addP;
+$("rn").onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();addP()}};
+$("rl").onclick=function(e){var b=e.target.closest("button");if(!b)return;S.roster.splice(+b.dataset.i,1);saveRoster();rr()};
+// Time estimate: setup + walking in a ~2,000 m2 warehouse + handling per box weight class + extra trips when cart is full
+var KG=[1,6,15],SEC=[15,25,45],CART=120;
+function boxes(){return [Math.max(0,Math.floor(+$("b").value||0)),+$("t").value||1]}
+function est(c){
+  var n=c[0],k=c[1];if(!n)return 0;
+  var kg=n*6*k;
+  return CFG.setup+n*CFG.walk+n*CFG.handle*k+(Math.max(1,Math.ceil(kg/CFG.cart))-1)*90;
+}
+function factor(){
+  var r=S.done.filter(function(a){return a.est}).slice(0,20).map(function(a){return (a.end-a.start)/1000/a.est});
+  if(r.length<3)return{f:1,n:r.length};
+  var f=r.reduce(function(x,y){return x+y},0)/r.length;
+  return{f:Math.min(2,Math.max(0.5,f)),n:r.length};
+}
+function upd(){
+  var c=boxes(),n=c[0];
+  if(!n){$("sg").textContent="Enter the boxes to get a suggested time.";return}
+  var F=factor(),m=Math.max(1,Math.ceil(est(c)*F.f*(1+CFG.buf/100)/60));
+  $("m").value=m;
+  $("sg").textContent="Suggested: "+m+" min for "+n+" boxes. "+(F.n>=3?"Adjusted from your last "+F.n+" finished orders.":"Standard estimate; it adapts after 3 finished orders.");
+}
+$("b").oninput=upd;$("t").onchange=upd;
+var per=3;
+function stats(){
+  var from=new Date();from.setMonth(from.getMonth()-per);var g={};
+  S.done.filter(function(a){return a.end>=from.getTime()}).forEach(function(a){
+    var r=g[a.name]||(g[a.name]={n:0,b:0,bs:0,s:0,ok:0,d:0,ov:0,er:0}),s=(a.end-a.start)/1000;
+    r.n++;r.s+=s;if(a.boxes){r.b+=a.boxes;r.bs+=s}if(s<=a.mins*60)r.ok++;var df=a.mins*60-s;r.d+=df;if(df<0)r.ov-=df;else r.er+=df;
+  });
+  var ns=Object.keys(g).sort(function(x,y){return g[y].ok/g[y].n-g[x].ok/g[x].n});
+  $("st").innerHTML=ns.length?'<div class="sc"><table><tr><th>Picker</th><th>Orders</th><th>Avg min/order</th><th>Sec/box</th><th>On time</th><th>Avg early (+) / over (-)</th><th>Total over</th><th>Total early</th></tr>'+ns.map(function(n){var r=g[n];return '<tr><td>'+esc(n)+'</td><td>'+r.n+'</td><td>'+(r.s/r.n/60).toFixed(1)+'</td><td>'+(r.b?Math.round(r.bs/r.b):"-")+'</td><td>'+Math.round(r.ok/r.n*100)+'%</td><td>'+sg(r.d/r.n)+'</td><td>'+Math.round(r.ov/60)+' min</td><td>'+Math.round(r.er/60)+' min</td></tr>'}).join("")+'</table></div>':'<div class="empty">No finished orders in this period yet.</div>';
+  Array.prototype.forEach.call(document.querySelectorAll(".seg button"),function(b){b.className=(+b.dataset.p===per?"":"ghost")});
+}
+document.querySelector(".seg").onclick=function(e){var b=e.target.closest("button");if(!b)return;per=+b.dataset.p;stats()};
+function sg(x){var m=Math.abs(x)/60;return (x>=0?"+":"-")+m.toFixed(1)+" min"}
+function rows(){
+  var h=["Picker","Order","Date","Start","End","Boxes","Allowed min","Actual min","Difference min (+ early, - over)","On time","Sec per box","Assigned by","Finished by"];
+  return [h].concat(S.done.slice().reverse().map(function(a){
+    var d=new Date(a.start),m=(a.end-a.start)/60000;
+    return [a.name,a.order||"",d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()),tm(a.start),tm(a.end),a.boxes||"",a.mins,m.toFixed(1),(a.mins-m).toFixed(1),m<=a.mins?"Yes":"No",a.boxes?Math.round(m*60/a.boxes):"",a.by||"",a.doneBy||""];
+  }));
+}
+$("cp").onclick=function(){
+  var t=rows().map(function(r){return r.join("\t")}).join("\n"),ta=$("ta");
+  ta.hidden=false;ta.value=t;ta.focus();ta.select();
+  try{navigator.clipboard.writeText(t)}catch(e){}
+};
+$("dl").onclick=function(){
+  var t=rows().map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"'}).join(",")}).join("\n");
+  (window.claude?claude.use("downloads"):Promise.resolve(null)).then(function(dl){
+    if(dl){dl.save({filename:"picker-orders.csv",data:"\uFEFF"+t}).catch(function(){});return}
+    var a=document.createElement("a");a.href="data:text/csv;charset=utf-8,\uFEFF"+encodeURIComponent(t);a.download="picker-orders.csv";document.body.appendChild(a);a.click();a.remove();
+  });return;var a;
+  document.body.appendChild(a);a.click();a.remove();
+};
+var DB=null,fin={};
+function warn(m){$("wn").textContent=m;$("wn").hidden=!m}
+function dbe(e){var m="Could not save: "+((e&&e.message)||e);warn(m);alert(m)}
+function dayStr(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function hk(s){var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(36)}
+rr();render();stats();setInterval(render,1000);
+(async function(){
+  if(FIREBASE_CONFIG.apiKey.indexOf("PASTE")===0){
+    $("cf").hidden=false;
+    $("cf").onsubmit=function(e){
+      e.preventDefault();var t=$("ct").value,c={},ok2=true;
+      ["apiKey","authDomain","projectId","appId"].forEach(function(k){var m=t.match(new RegExp(k+"[\"']?\\s*:\\s*[\"']([^\"']+)[\"']"));if(m)c[k]=m[1];else ok2=false});
+      if(!ok2){warn("Could not read the settings. Copy the whole block that contains apiKey, authDomain, projectId and appId.");return}
+      try{localStorage.setItem("fbcfg",JSON.stringify(c))}catch(x){}
+      location.reload();
+    };
+    return;
+  }
+  try{firebase.initializeApp(FIREBASE_CONFIG);RAW=firebase.firestore()}catch(e){warn("Could not start Firebase. Check the settings.");return}
+  try{RAW.enablePersistence({synchronizeTabs:true}).catch(function(){})}catch(e){}
+  function pre(p){return /^(members|companies)(\/|$)/.test(p)?p:"companies/"+CID+"/"+p}
+  DB={doc:function(p){return RAW.doc(pre(p))},collection:function(p){return RAW.collection(pre(p))},batch:function(){return RAW.batch()},enablePersistence:function(){return Promise.resolve()}};
+  var started=false;
+  function view(v){$("lg").hidden=v!=="login";$("lk").hidden=v!=="login";$("rg").hidden=v!=="reg";$("gt").hidden=v!=="gate";$("ap").hidden=v!=="app"}
+  function out(){firebase.auth().signOut().then(function(){location.reload()})}
+  $("lg").onsubmit=function(e){e.preventDefault();firebase.auth().signInWithEmailAndPassword($("le").value.trim(),$("lp").value).then(function(){warn("")}).catch(function(){warn("Sign-in failed. Check the email and password.")})};
+  $("so").onclick=out;$("gs").onclick=out;
+  $("lreg").onclick=function(){warn("");view("reg")};
+  $("rbk").onclick=function(){warn("");view("login")};
+  $("lfp").onclick=function(){
+    var em=$("le").value.trim();
+    if(!em){warn("Type your email in the Email box first, then tap Forgot password.");return}
+    firebase.auth().sendPasswordResetEmail(em).then(function(){warn("If this email has an account, a link to set a new password was sent. Check your inbox and spam.")}).catch(function(){warn("Could not send the email. Check the address.")});
+  };
+  $("rg").onsubmit=function(e){
+    e.preventDefault();
+    var em=$("re").value.trim().toLowerCase(),p1=$("rp").value,p2=$("rq").value;
+    if(p1.length<8){warn("The password must have at least 8 characters.");return}
+    if(p1!==p2){warn("The two passwords do not match.");return}
+    firebase.auth().createUserWithEmailAndPassword(em,p1).then(function(c){return c.user.sendEmailVerification()}).then(function(){warn("")}).catch(function(x){
+      var c=x&&x.code;
+      warn(c==="auth/email-already-in-use"?"This email already has an account. Go back and use Sign in or Forgot password.":c==="auth/admin-restricted-operation"?"Registration is switched off in Firebase. Ask your manager.":"Could not create the account: "+((x&&x.message)||x));
+    });
+  };
+  $("gr").onclick=function(){
+    var u=firebase.auth().currentUser;if(!u)return;
+    u.sendEmailVerification().then(function(){warn("Verification email sent again. Check your inbox and spam.")}).catch(function(x){warn("Could not send: "+((x&&x.message)||x))});
+  };
+  $("gc").onclick=function(){
+    var u=firebase.auth().currentUser;if(!u)return;
+    u.reload().then(function(){return u.getIdToken(true)}).then(function(){gate(firebase.auth().currentUser)});
+  };
+  $("gpb").onclick=function(){window.dispatchEvent(new Event("openplatform"))};
+  function noAccess(u,msg){$("gm").textContent=msg;$("gr").hidden=!!u.emailVerified;view("gate")}
+  var na="Your email is not approved yet. Ask your company manager to add it under Staff access, then tap Check again.";
+  function gate(u){
+    if(!u){view("login");return}
+    var em=(u.email||"").toLowerCase(),plat=em===PLATFORM;
+    $("gpb").hidden=!plat;
+    if(!plat&&!u.emailVerified){noAccess(u,"Please verify your email ("+u.email+"). Open the link in the email we sent you, then tap Check again.");return}
+    RAW.doc("members/"+em).get().then(function(s){
+      if(!s.exists){noAccess(u,plat?"Platform owner: you are not a member of a company yet. Open the platform console to create your company.":na);return}
+      var m=s.data();
+      return RAW.doc("companies/"+m.cid).get().then(function(c){
+        var cd=c.exists?c.data():{};
+        if(cd.active===false){noAccess(u,"This company account is suspended. Please contact support.");return}
+        CID=m.cid;ROLE=m.role||"staff";COMP=cd;CFG=Object.assign({},CFG,cd.settings||{});
+        applyBrand();window.dispatchEvent(new Event("rolechange"));go();view("app");
+      });
+    }).catch(function(){noAccess(u,na)});
+  }
+  firebase.auth().onAuthStateChanged(gate);
+  function go(){
+    if(started)return;started=true;
+    var tm0=setTimeout(function(){warn("Cannot reach the shared data yet. Showing what was loaded before.")},10000);
+    function ok(){clearTimeout(tm0);warn("")}
+    function er(e){clearTimeout(tm0);warn(e&&e.code==="permission-denied"?"Access denied. Ask your manager to check your access, then sign out and in.":"Shared data error: "+(e&&e.code))}
+    DB.collection("active").onSnapshot(function(q){S.active=q.docs.map(function(d){return Object.assign({},d.data())});ok();render()},er);
+    DB.doc("app/roster").onSnapshot(function(d){S.roster=d.exists?((d.data().list)||[]).slice():[];ok();rr()},er);
+    DB.collection("people").onSnapshot(function(q){PEOPLE={};PROLE={};q.docs.forEach(function(d){var x=d.data();if(x.email){var k=String(x.email).toLowerCase();PEOPLE[k]=x.name||"";PROLE[k]=x.role||""}});ok();render();stats();paintWho()},er);
+    var cut=new Date();cut.setDate(cut.getDate()-190);
+    DB.collection("hist").onSnapshot(function(q){
+      var seen={},all=[];
+      q.docs.forEach(function(d){if(d.data().day<dayStr(cut))return;((d.data().items)||[]).forEach(function(a){if(!seen[a.id]){seen[a.id]=1;all.push(a)}})});
+      all.sort(function(x,y){return y.end-x.end});S.done=all;ok();render();stats();
+    },er);
+  }
+})();
+// Clear records (manager only)
+(function(){
+  onRole(function(u){
+    var old=$("clrw");if(old)old.remove();
+    if(!u||ROLE!=="owner")return;
+    var r=document.createElement("div");r.id="clrw";r.style.marginTop="10px";
+    r.innerHTML='<button class="ghost" id="clr" type="button">Clear all finished records (manager)</button><div id="clp" hidden style="margin-top:8px"><input id="cpw" type="password" autocomplete="current-password" placeholder="Type your password"><button id="cgo" type="button" style="margin-top:8px">Confirm and delete everything</button></div>';
+    $("so").parentNode.insertAdjacentElement("afterend",r);
+    $("clr").onclick=function(){$("clp").hidden=!$("clp").hidden};
+    $("cgo").onclick=function(){
+      var pw=$("cpw").value;if(!pw)return;
+      var cred=firebase.auth.EmailAuthProvider.credential(u.email,pw);
+      u.reauthenticateWithCredential(cred).then(function(){
+        if(!confirm("This permanently deletes ALL finished-order records for everyone. Export to Excel first. Continue?"))return;
+        if(prompt("Type DELETE to confirm")!=="DELETE"){alert("Nothing was deleted.");return}
+        return DB.collection("hist").get().then(function(q){
+          var docs=q.docs,jobs=[];
+          for(var i=0;i<docs.length;i+=400){
+            var b=DB.batch();docs.slice(i,i+400).forEach(function(d){b.delete(d.ref)});jobs.push(b.commit());
+          }
+          return Promise.all(jobs);
+        }).then(function(){alert("All finished records were deleted.")});
+      }).catch(function(e){
+        alert(e&&e.code&&e.code.indexOf("auth/")===0?"Not deleted. Wrong password.":"Not deleted: "+((e&&e.message)||e));
+      }).then(function(){$("cpw").value="";$("clp").hidden=true});
+    };
+  });
+})();
+// Records by day or month
+(function(){
+  var mode="d";
+  $("done").insertAdjacentHTML("afterend",'<h2>Records by day or month</h2><div style="display:flex;gap:8px;margin-bottom:8px"><button type="button" id="vd">By day</button><button type="button" id="vm" class="ghost">By month</button></div><input id="vi" type="date" placeholder="YYYY-MM"><div id="rv"></div>');
+  var vi=$("vi");vi.value=dayStr(new Date());
+  function setMode(m){
+    mode=m;vi.type=m==="d"?"date":"month";
+    vi.value=m==="d"?dayStr(new Date()):dayStr(new Date()).slice(0,7);
+    $("vd").className=m==="d"?"":"ghost";$("vm").className=m==="m"?"":"ghost";rv();
+  }
+  $("vd").onclick=function(){setMode("d")};
+  $("vm").onclick=function(){setMode("m")};
+  vi.onchange=rv;
+  function rv(){
+    var v=vi.value;if(!v){$("rv").innerHTML="";return}
+    var list=S.done.filter(function(a){return dayStr(new Date(a.end)).indexOf(v)===0});
+    if(!list.length){$("rv").innerHTML='<div class="empty">No finished orders for this '+(mode==="d"?"day":"month")+'.</div>';return}
+    var g={};
+    list.forEach(function(a){
+      var r=g[a.name]||(g[a.name]={n:0,b:0,s:0,ok:0,ov:0}),s=(a.end-a.start)/1000;
+      r.n++;r.b+=a.boxes||0;r.s+=s;if(s<=a.mins*60)r.ok++;else r.ov+=s-a.mins*60;
+    });
+    var ns=Object.keys(g).sort(function(x,y){return g[y].n-g[x].n});
+    var h='<div class="sc"><table><tr><th>Picker</th><th>Orders</th><th>Boxes</th><th>Avg min/order</th><th>On time</th><th>Total over</th></tr>'+ns.map(function(n){
+      var r=g[n];
+      return '<tr><td>'+esc(n)+'</td><td>'+r.n+'</td><td>'+r.b+'</td><td>'+(r.s/r.n/60).toFixed(1)+'</td><td>'+Math.round(r.ok/r.n*100)+'%</td><td>'+Math.round(r.ov/60)+' min</td></tr>';
+    }).join("")+'</table></div>';
+    var gs={};list.forEach(function(a){var k=a.by||"unknown",r=gs[k]||(gs[k]={n:0,b:0});r.n++;r.b+=a.boxes||0});
+    h+='<h2>Orders assigned by</h2><div class="sc"><table><tr><th>Assigned by</th><th>Orders</th><th>Boxes</th></tr>'+Object.keys(gs).map(function(k){return '<tr><td>'+esc(k==="unknown"?"Not recorded":who(k))+'</td><td>'+gs[k].n+'</td><td>'+gs[k].b+'</td></tr>'}).join("")+'</table></div>';
+    if(mode==="d")h+='<h2>Orders</h2>'+list.map(function(a){
+      var took=a.end-a.start,over=took>a.mins*60000;
+      return '<div class="h"><span>'+esc(a.name)+(a.order?" · #"+esc(a.order):"")+(a.boxes?" · "+a.boxes+" boxes":"")+'<br><span class="meta">'+tm(a.start)+" to "+tm(a.end)+" · given "+a.mins+' min · '+(over?fmt(took-a.mins*60000)+" over":fmt(a.mins*60000-took)+" early")+(byline(a)?'<br>'+esc(byline(a)):'')+'</span></span><b class="'+(over?"l":"g")+'">'+fmt(took)+'</b></div>';
+    }).join("");
+    $("rv").innerHTML=h;
+  }
+  var _s=stats;stats=function(){_s();rv()};
+  rv();
+})();
+// Delete wrong orders (supervisor: today only; manager: any day)
+(function(){
+  var me=null,w=document.createElement("div");
+  w.innerHTML='<h2>Delete a wrong order</h2><input id="xd" type="date"><div id="xl"></div>';
+  $("done").insertAdjacentElement("afterend",w);
+  function isAdmin(){return ROLE==="owner"}
+  function xr(){
+    var v=$("xd").value;
+    if(!isAdmin()||!v)v=dayStr(new Date());
+    $("xd").value=v;$("xd").disabled=!isAdmin();
+    var list=S.done.filter(function(a){return dayStr(new Date(a.end))===v});
+    $("xl").innerHTML=list.length?list.map(function(a){
+      return '<div class="h"><span>'+esc(a.name)+(a.order?" · #"+esc(a.order):"")+(a.boxes?" · "+a.boxes+" boxes":"")+'<br><span class="meta">'+tm(a.start)+" to "+tm(a.end)+(byline(a)?'<br>'+esc(byline(a)):'')+'</span></span><button class="ghost" data-x="'+a.id+'" type="button">Delete</button></div>';
+    }).join(""):'<div class="empty">No finished orders on this day.</div>';
+  }
+  $("xd").value=dayStr(new Date());
+  $("xd").onchange=xr;
+  $("xl").onclick=function(e){
+    var b=e.target.closest("button");if(!b||!DB)return;
+    var id=+b.dataset.x,a=S.done.filter(function(o){return o.id===id})[0];if(!a)return;
+    var day=dayStr(new Date(a.end));
+    if(!isAdmin()&&day!==dayStr(new Date())){alert("Only the manager can delete orders from other days.");return}
+    if(!confirm("Delete this order record ("+a.name+(a.order?" #"+a.order:"")+")? This cannot be undone."))return;
+    var ref=DB.doc("hist/"+day+"_"+hk(a.name));
+    ref.get().then(function(s){
+      var it=(s.exists?(s.data().items||[]):[]).filter(function(o){return o.id!==id});
+      return ref.set({day:day,name:a.name,items:it});
+    }).then(function(){
+      lg("Deleted order record","Deleted by "+who(me.email)+" · "+(byline(a)?byline(a)+" · ":"")+a.name+(a.order?" · order #"+a.order:"")+(a.boxes?" · "+a.boxes+" boxes":"")+" · finished "+new Date(a.end).toLocaleString());
+    }).catch(dbe);
+  };
+  onRole(function(u){me=u;xr()});
+  var _s2=stats;stats=function(){_s2();xr()};
+  xr();
+})();
+// History log (activity record, manager only window)
+(function(){
+  var ME=null,pl=false,all=[],ct0=0;
+  function isAdmin(){return ROLE==="owner"}
+  var os=$("f").onsubmit;
+  $("f").onsubmit=function(e){
+    var n=$("n").value.trim(),o=$("o").value.trim(),b=$("b").value,m=$("m").value;
+    var r=os.call(this,e);
+    if(n)lg("Assigned order (timer started)",n+(o?" · order #"+o:"")+" · "+(+b||0)+" boxes · "+m+" min given");
+    return r;
+  };
+  var _fin=finish;
+  finish=function(id){
+    var a=S.active.filter(function(x){return x.id===id})[0],ok=a&&DB&&!fin[id];
+    _fin(id);
+    if(ok){var took=Date.now()-a.start;lg("Finished order",a.name+(a.order?" · order #"+a.order:"")+" · "+fmt(took)+(took>a.mins*60000?" ("+fmt(took-a.mins*60000)+" over)":" ("+fmt(a.mins*60000-took)+" early)"))}
+  };
+  cancel=function(id){
+    var a=S.active.filter(function(x){return x.id===id})[0];
+    if(!confirm("Remove this timer without saving it?"))return;
+    if(DB)DB.doc("active/"+id).delete().catch(dbe);
+    if(a)lg("Removed timer (not saved)",a.name+(a.order?" · order #"+a.order:""));
+  };
+  var lr=[],_sr=saveRoster,_rr=rr;
+  rr=function(){_rr();lr=S.roster.slice()};
+  saveRoster=function(){
+    S.roster.forEach(function(n){if(lr.indexOf(n)<0)lg("Added picker",n)});
+    lr.forEach(function(n){if(S.roster.indexOf(n)<0)lg("Removed picker",n)});
+    lr=S.roster.slice();_sr();
+  };
+  var _al=window.alert;
+  window.alert=function(m){
+    if(String(m).indexOf("All finished records were deleted")===0)lg("Cleared ALL finished records","");
+    return _al.apply(window,arguments);
+  };
+  $("lg").addEventListener("submit",function(){pl=true});
+  var hw=document.createElement("div");hw.className="row";hw.hidden=true;
+  hw.innerHTML='<button id="hb" type="button">History (last 6 months)</button>';
+  $("so").parentNode.insertAdjacentElement("afterend",hw);
+  var md=document.createElement("div");md.hidden=true;
+  md.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))";
+  md.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">History</h1><button id="hc" type="button" class="ghost">Close</button></div><input id="hq" placeholder="Search name, action or person" autocomplete="off"><div id="hl" class="meta" style="margin:8px 0">Loading...</div><div id="hr"></div></div>';
+  document.body.appendChild(md);
+  function show(){
+    var q=($("hq").value||"").toLowerCase(),h="",last="";
+    var list=all.filter(function(x){return x.at>=ct0&&(!q||(x.by+" "+x.act+" "+x.det).toLowerCase().indexOf(q)>=0)});
+    var shown=list.slice(0,1000);
+    shown.forEach(function(x){
+      var d=dayStr(new Date(x.at));
+      if(d!==last){h+='<h2>'+d+'</h2>';last=d}
+      h+='<div class="h"><span><b>'+esc(x.act)+'</b><br><span class="meta">By '+esc(who(x.by))+'</span><br><span class="meta">'+esc(x.det||"")+'</span></span><span class="meta" style="text-align:right">'+tm(x.at)+'</span></div>';
+    });
+    $("hl").textContent=list.length+" actions"+(list.length>shown.length?" (showing the newest 1000, use search)":"");
+    $("hr").innerHTML=h||'<div class="empty">Nothing recorded for this search.</div>';
+  }
+  function load(){
+    $("hl").textContent="Loading...";$("hr").innerHTML="";
+    var c=new Date();c.setDate(c.getDate()-190);ct0=c.getTime();
+    Promise.all([
+      DB.collection("log").where(firebase.firestore.FieldPath.documentId(),">=",dayStr(c)).get(),
+      DB.collection("audit").get().catch(function(){return{docs:[]}})
+    ]).then(function(r){
+      all=[];
+      r[0].docs.forEach(function(d){(d.data().items||[]).forEach(function(x){all.push(x)})});
+      r[1].docs.forEach(function(d){
+        var x=d.data(),a=x.deleted||{};
+        all.push({at:x.at,by:x.by,act:"Deleted order record by "+who(x.by),det:(byline(a)?byline(a)+" · ":"")+(a.name||"")+(a.order?" · order #"+a.order:"")+(a.boxes?" · "+a.boxes+" boxes":"")+(a.end?" · finished "+new Date(a.end).toLocaleString():"")});
+      });
+      all.sort(function(x,y){return y.at-x.at});show();
+    }).catch(function(e){$("hl").textContent="Could not load history: "+((e&&e.message)||e)});
+  }
+  $("hb").onclick=function(){md.hidden=false;document.body.style.overflow="hidden";load()};
+  $("hc").onclick=function(){md.hidden=true;document.body.style.overflow=""};
+  $("hq").oninput=show;
+  onRole(function(u){
+    ME=u;hw.hidden=!isAdmin();
+    if(u&&pl&&CID){pl=false;lg("Signed in","")}
+  });
+})();
+// Refresh button
+(function(){
+  var b=document.createElement("button");b.type="button";b.className="ghost";b.textContent="Refresh";
+  b.style.cssText="position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:12px;z-index:40;padding:8px 14px;background:var(--bg)";
+  b.onclick=function(){location.href=location.pathname+(location.search.indexOf("display=1")>=0?"?display=1&v=":"?v=")+Date.now()};
+  document.body.appendChild(b);
+})();
+// Picker statistics in its own window
+(function(){
+  var seg=$("st").previousElementSibling,head=seg.previousElementSibling,exp=$("cp").parentNode,ta=$("ta");
+  var md=document.createElement("div");md.hidden=true;
+  md.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))";
+  md.innerHTML='<div style="max-width:900px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">Picker statistics</h1><button id="sc" type="button" class="ghost">Close</button></div><div id="sbody"></div></div>';
+  document.body.appendChild(md);
+  head.remove();
+  var body=$("sbody");body.appendChild(seg);body.appendChild($("st"));body.appendChild(exp);body.appendChild(ta);
+  var w=document.createElement("div");w.className="row";
+  w.innerHTML='<button id="sb" type="button">Picker statistics</button>';
+  $("so").parentNode.insertAdjacentElement("afterend",w);
+  $("sb").onclick=function(){md.hidden=false;document.body.style.overflow="hidden";stats()};
+  $("sc").onclick=function(){md.hidden=true;document.body.style.overflow=""};
+})();
+// Records in their own window
+(function(){
+  var bt=$("vd").parentNode,head=bt.previousElementSibling,vi=$("vi"),rv=$("rv");
+  var md=document.createElement("div");md.hidden=true;
+  md.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))";
+  md.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">Records</h1><button id="rc" type="button" class="ghost">Close</button></div><div id="rbody"></div></div>';
+  document.body.appendChild(md);
+  head.remove();
+  var body=$("rbody");body.appendChild(bt);body.appendChild(vi);body.appendChild(rv);
+  var w=document.createElement("div");w.className="row";
+  w.innerHTML='<button id="rb" type="button">Records by day or month</button>';
+  $("so").parentNode.insertAdjacentElement("afterend",w);
+  $("rb").onclick=function(){md.hidden=false;document.body.style.overflow="hidden";stats()};
+  $("rc").onclick=function(){md.hidden=true;document.body.style.overflow=""};
+})();
+// Staff access (company manager)
+(function(){
+  var list=[],unsub=null;
+  var w=document.createElement("div");w.className="row";w.hidden=true;
+  w.innerHTML='<button id="stb" type="button">Staff access</button>';
+  $("so").parentNode.insertAdjacentElement("afterend",w);
+  var md=document.createElement("div");md.hidden=true;
+  md.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))";
+  md.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">Staff access</h1><button id="sx" type="button" class="ghost">Close</button></div><div class="meta" style="margin-bottom:8px">Type the full name and email of the person, then tap Give access. They open the app, tap "First time? Create my password", choose a password and verify their email. Remove someone to lock them out immediately.</div><input id="sn" placeholder="Full name (first and last name)" autocomplete="off" style="margin-bottom:8px"><input id="sm" type="email" placeholder="email@example.com" autocomplete="off"><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sd" type="checkbox" style="width:auto"> Display tablet only (read-only, for the pickers)</label><div class="row"><button id="sa" type="button">Give access</button></div><div id="sl"></div></div>';
+  document.body.appendChild(md);
+  function lab(r){return r==="owner"?"Manager":r==="display"?"Display tablet":"Supervisor"}
+  function draw(){
+    $("sl").innerHTML=list.length?list.map(function(x){return '<div class="h"><span><b>'+esc(x.name||"(no name yet)")+'</b><br><span class="meta">'+esc(x.email)+' · '+lab(x.role)+'</span></span>'+(x.role==="owner"?'':'<button class="ghost" data-e="'+esc(x.email)+'" type="button">Remove</button>')+'</div>'}).join(""):'<div class="empty">No one added yet.</div>';
+  }
+  $("sa").onclick=function(){
+    var em=$("sm").value.trim().toLowerCase(),nm=$("sn").value.trim(),u=firebase.auth().currentUser;
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){alert("Type a valid email address.");return}
+    if(!nm){alert("Type the full name (first and last name).");return}
+    if(!RAW||!u||!CID)return;
+    var role=$("sd").checked?"display":"staff",b=RAW.batch();
+    b.set(RAW.doc("members/"+em),{email:em,cid:CID,role:role,name:nm,by:u.email,at:Date.now()});
+    b.set(DB.doc("people/"+em),{email:em,name:nm,role:role});
+    b.commit().then(function(){lg("Gave access / set name",nm+" · "+em+(role==="display"?" (display only)":""));$("sm").value="";$("sn").value="";$("sd").checked=false}).catch(function(e){
+      if(e&&e.code==="permission-denied")alert("This email cannot be added. It may already belong to another company, or it is a manager account.");else dbe(e);
+    });
+  };
+  $("sl").onclick=function(e){
+    var b=e.target.closest("button");if(!b||!RAW)return;
+    var em=b.dataset.e;
+    if(!confirm("Remove access for "+em+"? They will be locked out immediately."))return;
+    RAW.doc("members/"+em).delete().then(function(){lg("Removed access",em)}).catch(dbe);
+  };
+  $("stb").onclick=function(){md.hidden=false;document.body.style.overflow="hidden";draw()};
+  $("sx").onclick=function(){md.hidden=true;document.body.style.overflow=""};
+  onRole(function(){
+    var adm=ROLE==="owner";w.hidden=!adm;
+    if(adm&&!unsub&&CID){
+      unsub=RAW.collection("members").where("cid","==",CID).onSnapshot(function(q){
+        list=q.docs.map(function(d){return d.data()}).sort(function(a,b){return a.email<b.email?-1:1});draw();
+      },function(){unsub=null});
+    }
+  });
+})();
+// Security: auto sign-out when idle
+(function(){
+  var last=Date.now();
+  ["click","touchstart","keydown"].forEach(function(ev){document.addEventListener(ev,function(){last=Date.now()},true)});
+  setInterval(function(){
+    if(firebase.auth().currentUser&&Date.now()-last>CFG.idle*3600000){firebase.auth().signOut().then(function(){location.reload()})}
+  },30000);
+})();
+// Show who is signed in
+(function(){
+  var d=document.createElement("div");d.id="whoami";d.className="meta";d.style.cssText="margin:-8px 0 12px;font-weight:600";d.hidden=true;
+  document.querySelector("main h1").insertAdjacentElement("afterend",d);
+  onRole(function(u){
+    if(u){paintWho();d.hidden=false}else{d.hidden=true}
+  });
+})();
+// Display mode for the pickers tablet (open the app with ?display=1) + display-only accounts
+(function(){
+  if(new URLSearchParams(location.search).get("display")!=="1")return;
+  var ov=document.createElement("div");ov.hidden=true;
+  ov.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:60;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(14px + env(safe-area-inset-bottom,0px))";
+  ov.innerHTML='<div class="row" style="margin:0 0 12px"><h1 style="margin:0;font-size:30px">In progress</h1><div id="dclk" style="font-size:30px;font-weight:700"></div></div><div id="dgrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px"></div><div class="row"><button id="dso" type="button" class="ghost" style="padding:6px 12px;font-size:13px;opacity:.6">Sign out</button></div>';
+  document.body.appendChild(ov);
+  $("dso").onclick=function(){if(confirm("Sign out this display?"))firebase.auth().signOut().then(function(){location.reload()})};
+  function paint(){
+    var u=firebase.auth().currentUser;
+    ov.hidden=!(u&&!$("ap").hidden);
+    if(ov.hidden)return;
+    var now=Date.now(),h="";
+    $("dclk").textContent=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+    S.active.slice().sort(function(x,y){return (x.start+x.mins*60000)-(y.start+y.mins*60000)}).forEach(function(a){
+      var tot=a.mins*60000,left=tot-(now-a.start),late=left<0,red=late||left<=tot*0.2;
+      var pct=Math.min(100,Math.max(0,(now-a.start)/tot*100));
+      h+='<div class="t'+(red?" red":"")+(late?" late":"")+'"><div style="font-size:30px;font-weight:800">'+esc(a.name)+'</div><div class="meta" style="font-size:18px">'+(a.order?"Order "+esc(a.order):"")+(a.boxes?(a.order?" · ":"")+a.boxes+" boxes":"")+'</div><div class="clock" style="font-size:clamp(40px,7vw,76px);white-space:nowrap">'+(late?"+":"")+fmt(left)+'</div><div class="bar" style="height:16px"><i style="width:'+pct+'%"></i></div><div class="meta" style="font-size:18px;margin-top:8px">Started '+new Date(a.start).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+' · '+a.mins+' min'+(late?" · OVER TIME":"")+'</div></div>';
+    });
+    $("dgrid").innerHTML=h||'<div class="empty" style="font-size:24px">No orders in progress.</div>';
+  }
+  setInterval(paint,1000);paint();
+  setInterval(function(){document.dispatchEvent(new Event("click"))},60000);
+  function wake(){try{if(navigator.wakeLock)navigator.wakeLock.request("screen").catch(function(){})}catch(e){}}
+  wake();document.addEventListener("visibilitychange",function(){if(!document.hidden)wake()});
+  setTimeout(function(){location.reload()},6*60*60*1000);
+})();
+// Orders table with filters + Excel (.xlsx) export, inside Picker statistics
+(function(){
+  var C=["Date","Picker","Order","Boxes","Start","End","Allowed min","Actual min","Difference min (+ early, - over)","On time","Sec per box","Assigned by","Finished by"];
+  var NUM={3:1,6:1,7:1,8:1,10:1},sortC=0,sortD=-1;
+  var box=document.createElement("div");
+  box.innerHTML='<h2>All orders (type in the boxes to filter)</h2><div class="meta" style="margin-bottom:6px">Type part of a name or date in a box, for example 2026-11 for a month. For numbers type &gt;5 or &lt;0. Tap a column title to sort. The Excel file contains the rows you see, with filters on every column.</div><div class="sc" style="max-height:60vh;overflow:auto"><table id="ott"><thead><tr id="oth"></tr><tr id="ofl"></tr></thead><tbody id="otb"></tbody></table></div><div id="otf" class="meta" style="margin:8px 0"></div><div class="row"><button id="oxl" type="button">Download Excel (.xlsx)</button></div>';
+  $("sbody").appendChild(box);
+  $("ofl").innerHTML=C.map(function(c,i){return '<th><input data-f="'+i+'" style="font-size:13px;padding:5px;min-width:76px" autocomplete="off"></th>'}).join("");
+  function rowsAll(){
+    return S.done.map(function(a){
+      var d=new Date(a.end),m=(a.end-a.start)/60000;
+      return [dayStr(d),a.name,a.order||"",a.boxes||0,tm(a.start),tm(a.end),a.mins,+m.toFixed(1),+(a.mins-m).toFixed(1),m<=a.mins?"Yes":"No",a.boxes?Math.round(m*60/a.boxes):"",a.by?who(a.by):"",a.doneBy?who(a.doneBy):""];
+    });
+  }
+  function ok(v,f){
+    f=f.trim().toLowerCase();if(!f)return true;
+    var m=f.match(/^(>=|<=|>|<|=)\s*(-?\d+(?:\.\d+)?)$/);
+    if(m){var x=parseFloat(v),n=parseFloat(m[2]);if(isNaN(x))return false;return m[1]===">"?x>n:m[1]==="<"?x<n:m[1]===">="?x>=n:m[1]==="<="?x<=n:x===n}
+    return String(v).toLowerCase().indexOf(f)>=0;
+  }
+  function filtered(){
+    var f=Array.prototype.map.call(document.querySelectorAll("#ofl input"),function(i){return i.value});
+    var r=rowsAll().filter(function(row){return row.every(function(v,i){return ok(v,f[i])})});
+    r.sort(function(a,b){var x=a[sortC],y=b[sortC];return (NUM[sortC]?(+x||0)-(+y||0):String(x).localeCompare(String(y)))*sortD});
+    return r;
+  }
+  function draw(){
+    $("oth").innerHTML=C.map(function(c,i){return '<th data-i="'+i+'" style="cursor:pointer;white-space:nowrap">'+esc(c)+(i===sortC?(sortD>0?" ▲":" ▼"):"")+'</th>'}).join("");
+    var r=filtered(),h="",bx=0,mn=0;
+    r.forEach(function(x){bx+=+x[3]||0;mn+=+x[7]||0});
+    r.slice(0,500).forEach(function(x){h+='<tr>'+x.map(function(v){return '<td style="white-space:nowrap">'+esc(v)+'</td>'}).join("")+'</tr>'});
+    $("otb").innerHTML=h||'<tr><td colspan="13" class="empty">No orders match.</td></tr>';
+    $("otf").textContent=r.length+" orders · "+bx+" boxes · average "+(r.length?(mn/r.length).toFixed(1):"0")+" min per order"+(r.length>500?" (showing the first 500; the Excel file has all of them)":"");
+  }
+  $("oth").onclick=function(e){
+    var t=e.target.closest("th");if(!t)return;
+    var i=+t.dataset.i;
+    if(i===sortC)sortD=-sortD;else{sortC=i;sortD=1}
+    draw();
+  };
+  $("ofl").oninput=draw;
+  var T=null;
+  function crc32(b){
+    if(!T){T=[];for(var n=0;n<256;n++){var c=n;for(var k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;T[n]=c>>>0}}
+    var c=0xFFFFFFFF;for(var i=0;i<b.length;i++)c=T[(c^b[i])&255]^(c>>>8);
+    return (c^0xFFFFFFFF)>>>0;
+  }
+  function u16(v){return [v&255,(v>>8)&255]}
+  function u32(v){return [v&255,(v>>8)&255,(v>>16)&255,(v>>24)&255]}
+  function zip(files){
+    var enc=new TextEncoder(),parts=[],cen=[],off=0;
+    files.forEach(function(f){
+      var nb=enc.encode(f.n),d=enc.encode(f.d),c=crc32(d),sz=d.length;
+      var lh=[].concat(u32(0x04034b50),u16(20),u16(0x0800),u16(0),u16(0),u16(0x21),u32(c),u32(sz),u32(sz),u16(nb.length),u16(0));
+      parts.push(new Uint8Array(lh),nb,d);
+      cen.push(new Uint8Array([].concat(u32(0x02014b50),u16(20),u16(20),u16(0x0800),u16(0),u16(0),u16(0x21),u32(c),u32(sz),u32(sz),u16(nb.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(off))),nb);
+      off+=lh.length+nb.length+sz;
+    });
+    var cl=0;cen.forEach(function(p){cl+=p.length});
+    var end=new Uint8Array([].concat(u32(0x06054b50),u16(0),u16(0),u16(files.length),u16(files.length),u32(cl),u32(off),u16(0)));
+    return new Blob(parts.concat(cen,[end]),{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  }
+  function xe(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+  function colL(i){return String.fromCharCode(65+i)}
+  function sheet(rows){
+    var x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>';
+    [12,22,12,8,12,12,12,12,16,9,11,26,26].forEach(function(w,i){x+='<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>'});
+    x+='</cols><sheetData><row r="1">';
+    C.forEach(function(h,i){x+='<c r="'+colL(i)+'1" t="inlineStr" s="1"><is><t>'+xe(h)+'</t></is></c>'});
+    x+='</row>';
+    rows.forEach(function(r,n){
+      var rn=n+2;x+='<row r="'+rn+'">';
+      r.forEach(function(v,i){
+        var ref=colL(i)+rn;
+        if(i===0){var p=String(v).split("-");x+='<c r="'+ref+'" s="2"><v>'+Math.round((Date.UTC(+p[0],+p[1]-1,+p[2])-Date.UTC(1899,11,30))/86400000)+'</v></c>'}
+        else if(NUM[i]){if(v!==""&&v!==null)x+='<c r="'+ref+'"'+((i===7||i===8)?' s="3"':'')+'><v>'+(+v)+'</v></c>'}
+        else if(v!==""){x+='<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+xe(v)+'</t></is></c>'}
+      });
+      x+='</row>';
+    });
+    return x+'</sheetData><autoFilter ref="A1:M'+(rows.length+1)+'"/></worksheet>';
+  }
+  $("oxl").onclick=function(){
+    var rows=filtered(),n=rows.length+1,ns='xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+    var blob=zip([
+      {n:"[Content_Types].xml",d:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'},
+      {n:"_rels/.rels",d:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+      {n:"xl/workbook.xml",d:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook '+ns+' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Orders" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">Orders!$A$1:$M$'+n+'</definedName></definedNames></workbook>'},
+      {n:"xl/_rels/workbook.xml.rels",d:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'},
+      {n:"xl/styles.xml",d:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet '+ns+'><numFmts count="2"><numFmt numFmtId="164" formatCode="yyyy\\-mm\\-dd"/><numFmt numFmtId="165" formatCode="0.0"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'},
+      {n:"xl/worksheets/sheet1.xml",d:sheet(rows)}
+    ]);
+    var name="picker-orders-"+dayStr(new Date())+".xlsx",f=null;
+    try{f=new File([blob],name,{type:blob.type})}catch(e){}
+    if(f&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f]}).catch(function(){});return}
+    var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();
+  };
+  var _s5=stats;stats=function(){_s5();draw()};
+  draw();
+})();
+// Delete a wrong order in its own window
+(function(){
+  var w=$("xd").parentNode,h=w.querySelector("h2");
+  var md=document.createElement("div");md.hidden=true;
+  md.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))";
+  md.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">Delete a wrong order</h1><button id="xc" type="button" class="ghost">Close</button></div><div id="xbody"></div></div>';
+  document.body.appendChild(md);
+  if(h)h.remove();
+  $("xbody").appendChild(w);
+  var r=document.createElement("div");r.className="row";
+  r.innerHTML='<button id="xb" type="button" class="ghost">Delete a wrong order</button>';
+  $("so").parentNode.insertAdjacentElement("afterend",r);
+  $("xb").onclick=function(){md.hidden=false;document.body.style.overflow="hidden";stats()};
+  $("xc").onclick=function(){md.hidden=true;document.body.style.overflow=""};
+})();
+// Look: matte green theme, raised buttons, menu bar at the top
+(function(){
+  var st=document.createElement("style");
+  st.textContent=[
+    ':root{--bg:#cbd9cd;--card:#f4f8f4;--inp:#fff;--ink:#13241a;--mute:#4a5f53;--line:#aebfb2;--ok:#17803d;--okbg:#e2f1e5;--bad:#bf2a1f;--badbg:#fbe4e1;--btn:#1d4a35;--btnink:#fff}',
+    '@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b2a21;--card:#253a2e;--inp:#1b2a21;--ink:#e7f0e9;--mute:#9ab1a1;--line:#35503f;--ok:#4cc77a;--okbg:#1a3324;--bad:#ff7a6c;--badbg:#3b1f1c;--btn:#d4e8da;--btnink:#12241a}}',
+    'body{background:var(--bg)}',
+    'h1{color:var(--btn);letter-spacing:.2px}',
+    'form,details{background:var(--card)}',
+    'form,details,.t{box-shadow:0 1px 2px rgba(0,0,0,.10),0 4px 12px rgba(0,0,0,.06)}',
+    'input,select{background:var(--inp)}',
+    'button{border-radius:10px;box-shadow:0 2px 0 rgba(0,0,0,.28),0 5px 10px rgba(0,0,0,.16);transition:transform .05s,box-shadow .05s}',
+    'button:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.28),0 1px 3px rgba(0,0,0,.2)}',
+    'button.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}',
+    '.chip button{box-shadow:none;background:transparent}',
+    '#menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 16px}',
+    '#menu>.row{margin:0;display:block}',
+    '#menu button{width:100%}'
+  ].join("\n");
+  document.head.appendChild(st);
+  var menu=document.createElement("div");menu.id="menu";
+  ["sb","rb","xb","hb","stb"].forEach(function(id){var b=$(id);if(b&&b.parentNode)menu.appendChild(b.parentNode)});
+  var xb=$("xb");if(xb)xb.className="";
+  $("ap").insertBefore(menu,$("f"));
+})();
+// Organize the buttons at the bottom (replaces the top menu)
+(function(){
+  var st=document.createElement("style");
+  st.textContent=[
+    '#bottombar{margin:24px 0 8px}',
+    '#bottombar .bg{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.10),0 4px 12px rgba(0,0,0,.06)}',
+    '#bottombar .bt{font-size:13px;font-weight:700;color:var(--mute);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px}',
+    '#bottombar .bgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}',
+    '#bottombar .bgrid>.row{margin:0;display:block}',
+    '#bottombar button{width:100%}'
+  ].join("\n");
+  document.head.appendChild(st);
+  var wrap=document.createElement("div");wrap.id="bottombar";
+  function grp(title){var g=document.createElement("div");g.className="bg";g.innerHTML='<div class="bt">'+title+'</div><div class="bgrid"></div>';wrap.appendChild(g);return g}
+  function add(g,id){var b=$(id);if(b&&b.parentNode)g.querySelector(".bgrid").appendChild(b.parentNode)}
+  var g1=grp("Reports and records"),g2=grp("Manager only");
+  add(g1,"sb");add(g1,"rb");add(g1,"xb");
+  add(g2,"hb");add(g2,"stb");
+  g2.hidden=true;
+  var menu=$("menu");if(menu)menu.remove();
+  var soRow=$("so").parentNode;
+  soRow.parentNode.insertBefore(wrap,soRow);
+  var xb=$("xb");if(xb)xb.className="";
+  onRole(function(u){g2.hidden=!(u&&ROLE==="owner")});
+})();
+// Smart features: per-picker suggestions, sound alerts, forgotten timers, dashboard, offline mode
+(function(){
+  var MODAL="position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))";
+  var D=86400000;
+
+  // ---------- 1. Offline mode ----------
+  try{if(DB&&DB.enablePersistence)DB.enablePersistence({synchronizeTabs:true}).catch(function(){})}catch(e){}
+  finish=function(id){
+    var i=S.active.findIndex(function(x){return x.id===id});
+    if(i<0||!DB||fin[id])return;fin[id]=1;
+    var a=Object.assign({},S.active[i]);a.end=Date.now();a.doneBy=me();
+    var day=dayStr(new Date(a.end)),took=a.end-a.start,b=DB.batch();
+    b.set(DB.doc("hist/"+day+"_"+hk(a.name)),{day:day,name:a.name,items:firebase.firestore.FieldValue.arrayUnion(a)},{merge:true});
+    b.delete(DB.doc("active/"+id));
+    b.commit().catch(function(e){delete fin[id];dbe(e)});
+    lg("Finished order",a.name+(a.order?" · order #"+a.order:"")+" · "+fmt(took)+(took>a.mins*60000?" ("+fmt(took-a.mins*60000)+" over)":" ("+fmt(a.mins*60000-took)+" early)"));
+  };
+  var ob=document.createElement("div");ob.id="ofb";ob.hidden=true;
+  ob.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:70;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:#b45309;color:#fff;font-weight:600;text-align:center";
+  ob.textContent="Offline: your actions are saved and will sync when the connection returns";
+  document.body.appendChild(ob);
+  var offT=null;
+  function setOff(v){if(v){if(!offT)offT=setTimeout(function(){ob.hidden=false},4000)}else{clearTimeout(offT);offT=null;ob.hidden=true}}
+  window.addEventListener("offline",function(){setOff(true)});
+  window.addEventListener("online",function(){setOff(false)});
+  var netUnsub=null;
+  setInterval(function(){
+    if(netUnsub||!DB||!firebase.auth().currentUser)return;
+    try{netUnsub=DB.collection("active").onSnapshot({includeMetadataChanges:true},function(q){setOff(q.metadata.fromCache)},function(){netUnsub=null})}catch(e){}
+  },5000);
+
+  // ---------- 2. Smarter suggestions per picker ----------
+  function ratios(list){return list.slice(0,25).map(function(a){return (a.end-a.start)/1000/a.est}).filter(function(r){return r>0.2&&r<3})}
+  function sum(a){return a.reduce(function(x,y){return x+y},0)}
+  function pf(name){
+    var all=S.done.filter(function(a){return a.est&&a.end>a.start});
+    var g=ratios(all),gm=g.length>=3?sum(g)/g.length:1;
+    var o=name?ratios(all.filter(function(a){return a.name===name})):[];
+    if(!o.length)return{f:Math.min(2,Math.max(0.5,gm)),own:0,g:g.length};
+    return{f:Math.min(2,Math.max(0.5,(sum(o)+3*gm)/(o.length+3))),own:o.length,g:g.length};
+  }
+  upd=function(){
+    var c=boxes(),n=c[0];
+    if(!n){$("sg").textContent="Enter the boxes to get a suggested time.";return}
+    var name=$("n").value,p=pf(name),m=Math.max(1,Math.ceil(est(c)*p.f*(1+CFG.buf/100)/60));
+    $("m").value=m;
+    var why=p.own>=3?"based on "+name+"'s last "+p.own+" orders":p.own>0?"mostly standard, still learning from "+name+"'s "+p.own+" orders":p.g>=3?"based on the team's last "+p.g+" orders":"standard estimate until there are 3 finished orders";
+    $("sg").textContent="Suggested: "+m+" min for "+n+" boxes ("+why+").";
+  };
+  $("b").oninput=upd;$("t").onchange=upd;$("n").addEventListener("change",upd);
+
+  // ---------- 3. Sound alerts ----------
+  var snd=false,ac=null;
+  try{snd=localStorage.getItem("snd")==="1"}catch(e){}
+  function AC(){return window.AudioContext||window.webkitAudioContext}
+  function unlock(){if(!snd||!AC())return;try{ac=ac||new (AC())();if(ac.state==="suspended")ac.resume()}catch(e){}}
+  ["click","touchstart"].forEach(function(ev){document.addEventListener(ev,unlock,true)});
+  function beep(times,long){
+    if(!snd)return;
+    try{
+      unlock();
+      for(var i=0;i<times;i++){
+        var o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime+i*(long?0.55:0.25);
+        o.type="square";o.frequency.value=long?520:880;o.connect(g);g.connect(ac.destination);
+        g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.35,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+(long?0.45:0.18));
+        o.start(t);o.stop(t+(long?0.5:0.2));
+      }
+    }catch(e){}
+    try{if(navigator.vibrate)navigator.vibrate(long?[300,100,300]:[150])}catch(e){}
+  }
+  var sbtns=[];
+  function paintSnd(){sbtns.forEach(function(b){b.textContent="🔔 Sound alerts: "+(snd?"On":"Off")})}
+  function toggleSnd(){snd=!snd;try{localStorage.setItem("snd",snd?"1":"0")}catch(e){}paintSnd();if(snd){unlock();beep(1,false)}}
+  var g1=document.querySelector("#bottombar .bg:nth-child(1) .bgrid"),g2=document.querySelector("#bottombar .bg:nth-child(2) .bgrid");
+  var sr=document.createElement("div");sr.className="row";sr.innerHTML='<button id="snb" type="button" class="ghost"></button>';
+  (g1||$("so").parentNode.parentNode).appendChild(sr);
+  sbtns.push($("snb"));$("snb").onclick=toggleSnd;
+  var dc=$("dclk");
+  if(dc){
+    var b2=document.createElement("button");b2.type="button";b2.className="ghost";b2.style.cssText="padding:6px 12px;font-size:14px";
+    b2.onclick=toggleSnd;sbtns.push(b2);dc.insertAdjacentElement("beforebegin",b2);
+    var nt=document.createElement("div");nt.className="meta";nt.style.cssText="font-size:16px;color:var(--bad)";nt.textContent="Tap the screen once to turn sound on";nt.hidden=true;
+    dc.insertAdjacentElement("beforebegin",nt);
+    setInterval(function(){nt.hidden=!(snd&&(!ac||ac.state!=="running"))},1000);
+  }
+  paintSnd();
+  var seen={};
+  setInterval(function(){
+    var now=Date.now(),alive={};
+    S.active.forEach(function(a){
+      var tot=a.mins*60000,left=tot-(now-a.start),st=left<0?2:(left<=tot*0.2?1:0),s=seen[a.id];
+      alive[a.id]=1;
+      if(!s){seen[a.id]={st:st,last:now};return}
+      if(st>s.st){s.st=st;s.last=now;beep(st===2?3:2,st===2)}
+      else if(st===2&&now-s.last>120000){s.last=now;beep(2,true)}
+    });
+    Object.keys(seen).forEach(function(k){if(!alive[k])delete seen[k]});
+  },1000);
+
+  // ---------- 4. Forgotten timers ----------
+  var fb=document.createElement("div");fb.id="fgt";fb.hidden=true;
+  fb.style.cssText="background:var(--badbg);border:2px solid var(--bad);border-radius:12px;padding:10px 12px;margin:0 0 12px";
+  $("ap").insertBefore(fb,$("f"));
+  var fsig="";
+  function fg(){
+    var now=Date.now(),list=S.active.filter(function(a){var el=now-a.start,al=a.mins*60000;return el>2*al&&el-al>=600000});
+    if(!list.length){fsig="";fb.hidden=true;return}
+    var sig=list.map(function(a){return a.id}).join(",")+"@"+Math.floor(now/60000);
+    if(sig===fsig)return;fsig=sig;fb.hidden=false;
+    fb.innerHTML='<div style="font-weight:700;margin-bottom:6px">Possibly forgotten timers</div>'+list.map(function(a){
+      return '<div class="h" style="align-items:center"><span><b>'+esc(a.name)+'</b>'+(a.order?' · #'+esc(a.order):'')+'<br><span class="meta">running '+Math.round((now-a.start)/60000)+' min, given '+a.mins+' min</span></span><span style="display:flex;gap:6px"><button data-fa="f" data-id="'+a.id+'" type="button">Finish</button><button class="ghost" data-fa="x" data-id="'+a.id+'" type="button">Remove</button></span></div>';
+    }).join("")+'<div class="meta" style="margin-top:6px">If the order was finished long ago, tap Remove so it does not spoil the statistics.</div>';
+  }
+  fb.onclick=function(e){var b=e.target.closest("button");if(!b)return;var id=+b.dataset.id;b.dataset.fa==="f"?finish(id):cancel(id)};
+  setInterval(fg,5000);fg();
+
+  // ---------- 5. Manager dashboard ----------
+  var dm=document.createElement("div");dm.hidden=true;dm.style.cssText=MODAL;
+  dm.innerHTML='<div style="max-width:900px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">Dashboard</h1><button id="dbx" type="button" class="ghost">Close</button></div><div id="dbd"></div></div>';
+  document.body.appendChild(dm);
+  var dr=document.createElement("div");dr.className="row";dr.innerHTML='<button id="dbb" type="button">Dashboard</button>';
+  (g2||$("so").parentNode.parentNode).appendChild(dr);
+  function agg(list){var r={n:0,b:0,s:0,sb:0,bs:0,ok:0};list.forEach(function(a){var s=(a.end-a.start)/1000;r.n++;r.b+=a.boxes||0;r.s+=s;if(a.boxes){r.sb+=s;r.bs+=a.boxes}if(s<=a.mins*60)r.ok++});return r}
+  function pct(r){return r.n?Math.round(r.ok/r.n*100):0}
+  function bph(r){return r.s?Math.round(r.b/(r.s/3600)):0}
+  function bars(vals,labs,unit){
+    var w=320,h=110,n=vals.length,bw=w/n,mx=Math.max.apply(null,vals.concat([1]));
+    var s='<svg viewBox="0 0 '+w+' '+(h+18)+'" style="width:100%;max-width:560px">';
+    vals.forEach(function(v,i){
+      var bh=Math.round(v/mx*h);
+      s+='<rect x="'+(i*bw+3)+'" y="'+(h-bh)+'" width="'+(bw-6)+'" height="'+bh+'" rx="3" style="fill:var(--ok)"/><text x="'+(i*bw+bw/2)+'" y="'+(h+13)+'" font-size="9" text-anchor="middle" style="fill:var(--mute)">'+labs[i]+'</text>';
+      if(v)s+='<text x="'+(i*bw+bw/2)+'" y="'+(h-bh-3)+'" font-size="9" text-anchor="middle" style="fill:var(--ink)">'+v+unit+'</text>';
+    });
+    return s+'</svg>';
+  }
+  function card(t,v,sub){return '<div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px"><div class="meta">'+t+'</div><div style="font-size:28px;font-weight:800">'+v+'</div><div class="meta">'+sub+'</div></div>'}
+  function dash(){
+    var now=Date.now(),today=dayStr(new Date()),clean=[],sus=[];
+    S.done.forEach(function(a){((a.end-a.start)<=3*a.mins*60000?clean:sus).push(a)});
+    var t=agg(clean.filter(function(a){return dayStr(new Date(a.end))===today}));
+    var past=clean.filter(function(a){return dayStr(new Date(a.end))!==today&&a.end>now-30*D});
+    var dset={};past.forEach(function(a){dset[dayStr(new Date(a.end))]=1});
+    var nd=Object.keys(dset).length,p=agg(past);
+    function usual(v,avg,unit){return nd?"usual "+Math.round(avg)+unit+" ("+(v>=avg?"+":"")+Math.round(v-avg)+unit+")":"no history yet"}
+    var h='<h2 style="margin-top:0">Today</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">'
+      +card("Orders finished",t.n,usual(t.n,nd?p.n/nd:0,""))
+      +card("Boxes",t.b,usual(t.b,nd?p.b/nd:0,""))
+      +card("Finished on time",pct(t)+"%",usual(pct(t),pct(p),"%"))
+      +card("Boxes per picker-hour",bph(t),usual(bph(t),bph(p),""))+'</div>';
+    var A=clean.filter(function(a){return a.end>now-30*D}),B=clean.filter(function(a){return a.end<=now-30*D&&a.end>now-60*D});
+    var names={};A.concat(B).forEach(function(a){names[a.name]=1});
+    var rowsP=[],ins=[],best=null,worst=null,late=null;
+    Object.keys(names).forEach(function(n){
+      var a=agg(A.filter(function(x){return x.name===n})),b=agg(B.filter(function(x){return x.name===n})),ch=null;
+      if(a.bs&&b.bs&&a.n>=5&&b.n>=5){ch=((a.sb/a.bs)-(b.sb/b.bs))/(b.sb/b.bs)*100}
+      if(ch!==null){if(ch<=-5&&(!best||ch<best.ch))best={n:n,ch:ch};if(ch>=5&&(!worst||ch>worst.ch))worst={n:n,ch:ch}}
+      if(a.n>=5&&pct(a)<70&&(!late||pct(a)<late.p))late={n:n,p:pct(a),k:a.n-a.ok,t:a.n};
+      rowsP.push({n:n,a:a,ch:ch});
+    });
+    rowsP.sort(function(x,y){return y.a.n-x.a.n});
+    var hrs={};A.forEach(function(a){var k=new Date(a.end).getHours();hrs[k]=(hrs[k]||0)+1});
+    var top=Object.keys(hrs).sort(function(x,y){return hrs[y]-hrs[x]})[0];
+    if(best)ins.push(best.n+" is "+Math.round(-best.ch)+"% faster per box than in the previous 30 days.");
+    if(worst)ins.push(worst.n+" is "+Math.round(worst.ch)+"% slower per box than in the previous 30 days.");
+    if(late)ins.push(late.n+" finished late on "+late.k+" of "+late.t+" orders in the last 30 days.");
+    if(top!==undefined)ins.push("Busiest time: "+pad(+top)+":00 to "+pad((+top+1)%24)+":00 ("+hrs[top]+" orders in 30 days).");
+    if(sus.length)ins.push(sus.length+" order"+(sus.length>1?"s":"")+" took more than 3 times the time given (probably forgotten timers). They are left out of these numbers.");
+    h+='<h2>Insights</h2>'+(ins.length?'<ul style="margin:0;padding-left:20px;line-height:1.6">'+ins.map(function(x){return '<li>'+esc(x)+'</li>'}).join("")+'</ul>':'<div class="empty">Not enough finished orders yet. Insights appear after a few days of use.</div>');
+    var v1=[],l1=[];
+    for(var i=13;i>=0;i--){var d=new Date(now-i*D),k=dayStr(d);v1.push(agg(clean.filter(function(a){return dayStr(new Date(a.end))===k})).b);l1.push(d.getDate())}
+    var v2=[],l2=[];
+    for(var j=7;j>=0;j--){var lo=now-(j+1)*7*D,hi=now-j*7*D,dd=new Date(hi);v2.push(pct(agg(clean.filter(function(a){return a.end>lo&&a.end<=hi}))));l2.push(dd.getDate()+"/"+(dd.getMonth()+1))}
+    h+='<h2>Boxes per day (last 14 days)</h2>'+bars(v1,l1,"")+'<h2>Finished on time, per week (last 8 weeks, %)</h2>'+bars(v2,l2,"");
+    h+='<h2>Pickers: last 30 days compared with the 30 days before</h2><div class="sc"><table><tr><th>Picker</th><th>Orders</th><th>Boxes</th><th>Sec per box</th><th>Speed change</th><th>On time</th></tr>'
+      +(rowsP.map(function(r){
+        var a=r.a,tr=r.ch===null?"–":(r.ch<=-5?'<span style="color:var(--ok)">▲ '+Math.round(-r.ch)+'% faster</span>':r.ch>=5?'<span style="color:var(--bad)">▼ '+Math.round(r.ch)+'% slower</span>':"steady");
+        return '<tr><td>'+esc(r.n)+'</td><td>'+a.n+'</td><td>'+a.b+'</td><td>'+(a.bs?Math.round(a.sb/a.bs):"–")+'</td><td>'+tr+'</td><td>'+(a.n?pct(a)+"%":"–")+'</td></tr>';
+      }).join("")||'<tr><td colspan="6" class="empty">No finished orders yet.</td></tr>')+'</table></div>';
+    $("dbd").innerHTML=h;
+  }
+  $("dbb").onclick=function(){dm.hidden=false;document.body.style.overflow="hidden";dash()};
+  $("dbx").onclick=function(){dm.hidden=true;document.body.style.overflow=""};
+  var _s6=stats;stats=function(){_s6();if(!dm.hidden)dash()};
+})();
+// Visible alerts, iPhone silent-mode fix, and time corrections
+(function(){
+  // ----- visible alerts (work even with sound off) -----
+  var tb=document.createElement("div");tb.id="tst";tb.hidden=true;
+  tb.style.cssText="position:fixed;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top,0px));z-index:90;display:flex;flex-direction:column;gap:6px";
+  document.body.appendChild(tb);
+  function toast(msg,bad){
+    var d=document.createElement("div");
+    d.style.cssText="padding:12px 14px;border-radius:12px;font-weight:700;font-size:18px;color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.35);background:"+(bad?"#bf2a1f":"#b45309");
+    d.textContent=msg;d.onclick=function(){d.remove();tb.hidden=!tb.children.length};
+    tb.appendChild(d);tb.hidden=false;
+    while(tb.children.length>3)tb.firstChild.remove();
+    setTimeout(function(){if(d.parentNode){d.remove();tb.hidden=!tb.children.length}},12000);
+  }
+  var seen2={};
+  setInterval(function(){
+    var now=Date.now(),alive={};
+    S.active.forEach(function(a){
+      var tot=a.mins*60000,left=tot-(now-a.start),st=left<0?2:(left<=tot*0.2?1:0),s=seen2[a.id];
+      alive[a.id]=1;
+      if(s===undefined){seen2[a.id]=st;return}
+      if(st>s){seen2[a.id]=st;toast((st===2?"⚠ Time is over: ":"⏰ Almost out of time: ")+a.name+(a.order?" (order "+a.order+")":""),st===2)}
+    });
+    Object.keys(seen2).forEach(function(k){if(!alive[k])delete seen2[k]});
+  },1000);
+
+  // ----- let sound play even when the iPhone silent switch is on -----
+  function wav(){
+    var n=800,b=new ArrayBuffer(44+n),v=new DataView(b);
+    function w(o,s){for(var i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))}
+    w(0,"RIFF");v.setUint32(4,36+n,true);w(8,"WAVE");w(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,8000,true);v.setUint32(28,8000,true);v.setUint16(32,1,true);v.setUint16(34,8,true);w(36,"data");v.setUint32(40,n,true);
+    for(var i=0;i<n;i++)v.setUint8(44+i,128);
+    return new Blob([b],{type:"audio/wav"});
+  }
+  var sa=null;
+  function keepAudio(){
+    try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){}
+    try{
+      var on=localStorage.getItem("snd")==="1";
+      if(!on){if(sa&&!sa.paused)sa.pause();return}
+      if(!sa){sa=new Audio(URL.createObjectURL(wav()));sa.loop=true;sa.setAttribute("playsinline","")}
+      if(sa.paused)sa.play().catch(function(){});
+    }catch(e){}
+  }
+  ["click","touchstart"].forEach(function(ev){document.addEventListener(ev,keepAudio,true)});
+
+  // ----- fix the time of a finished order (supervisor: today only, manager: any day) -----
+  var xlb=$("xl");
+  var xbn=$("xb");if(xbn)xbn.textContent="Fix or delete an order";
+  var xcb=$("xc");if(xcb){var h1=xcb.parentNode.querySelector("h1");if(h1)h1.textContent="Fix or delete an order"}
+  $("xd").insertAdjacentHTML("beforebegin",'<div class="meta" style="margin-bottom:8px">Tap Fix time if someone forgot to tap Finished. Every correction is recorded in History with the reason and the name of the person.</div>');
+  function addFix(){
+    Array.prototype.forEach.call(xlb.querySelectorAll(".h"),function(row){
+      var del=row.querySelector("button[data-x]");
+      if(!del||row.querySelector("button[data-fx]"))return;
+      var f=document.createElement("button");f.type="button";f.setAttribute("data-fx",del.getAttribute("data-x"));f.textContent="Fix time";
+      var box=document.createElement("span");box.style.cssText="display:flex;gap:6px;align-items:flex-start";
+      del.parentNode.insertBefore(box,del);box.appendChild(f);box.appendChild(del);
+    });
+  }
+  new MutationObserver(addFix).observe(xlb,{childList:true,subtree:true});addFix();
+  var _bl=byline;
+  byline=function(a){var s=_bl(a);if(a.fix)s+=(s?" · ":"")+"Time corrected by "+who(a.fix.by)+": "+a.fix.reason;return s};
+  xlb.addEventListener("click",function(e){
+    var bt=e.target.closest("button[data-fx]");if(!bt||!DB)return;
+    var u=firebase.auth().currentUser;if(!u)return;
+    var adm=ROLE==="owner";
+    var id=+bt.getAttribute("data-fx"),a=S.done.filter(function(o){return o.id===id})[0];if(!a)return;
+    var oldDay=dayStr(new Date(a.end));
+    if(!adm&&oldDay!==dayStr(new Date())){alert("Only the manager can correct orders from other days.");return}
+    var cur=(a.end-a.start)/60000;
+    var v=prompt("How many minutes did this order really take?\nGiven: "+a.mins+" min. Recorded now: "+cur.toFixed(1)+" min.",String(a.mins));
+    if(v===null)return;
+    var mins=parseFloat(String(v).replace(",","."));
+    if(!(mins>0&&mins<1000)){alert("Type the minutes as a number, for example 12");return}
+    var why=prompt("Reason for the correction (required). For example: forgot to tap Finished");
+    if(!why||!why.trim()){alert("A reason is required. Nothing was changed.");return}
+    var newEnd=a.start+Math.round(mins*60000);
+    if(newEnd>Date.now()+60000){alert("That time is in the future. Type fewer minutes.");return}
+    var fix={by:u.email,at:Date.now(),origEnd:(a.fix&&a.fix.origEnd)||a.end,reason:why.trim()};
+    var nu=Object.assign({},a,{end:newEnd,fix:fix}),newDay=dayStr(new Date(newEnd));
+    var oldRef=DB.doc("hist/"+oldDay+"_"+hk(a.name)),newRef=DB.doc("hist/"+newDay+"_"+hk(a.name));
+    oldRef.get().then(function(s){
+      var items=(s.exists?(s.data().items||[]):[]).filter(function(o){return o.id!==id}),b=DB.batch();
+      if(newDay===oldDay){items.push(nu);b.set(oldRef,{day:oldDay,name:a.name,items:items})}
+      else{b.set(oldRef,{day:oldDay,name:a.name,items:items});b.set(newRef,{day:newDay,name:a.name,items:firebase.firestore.FieldValue.arrayUnion(nu)},{merge:true})}
+      return b.commit();
+    }).then(function(){
+      lg("Corrected order time",a.name+(a.order?" · order #"+a.order:"")+" · "+cur.toFixed(1)+" min → "+mins+" min (given "+a.mins+" min) · "+(mins<=a.mins?"now on time":"still late")+" · reason: "+why.trim());
+    }).catch(dbe);
+  });
+
+  // ----- show the manager how many corrections were made (inside the Dashboard) -----
+  function addCorr(){
+    var d=$("dbd");if(!d||!d.offsetParent||d.querySelector("#corr"))return;
+    var lim=Date.now()-30*86400000,list=S.done.filter(function(a){return a.fix&&a.fix.at>lim}),by={};
+    list.forEach(function(a){var k=a.fix.by,r=by[k]||(by[k]={n:0,m:0});r.n++;r.m+=Math.max(0,((a.fix.origEnd-a.start)-(a.end-a.start))/60000)});
+    var h='<div id="corr"><h2>Time corrections (last 30 days)</h2>';
+    if(!list.length)h+='<div class="empty">No corrections.</div>';
+    else{
+      h+='<div class="sc"><table><tr><th>Corrected by</th><th>Orders</th><th>Minutes removed</th></tr>'+Object.keys(by).map(function(k){return '<tr><td>'+esc(who(k))+'</td><td>'+by[k].n+'</td><td>'+Math.round(by[k].m)+'</td></tr>'}).join("")+'</table></div>';
+      h+=list.slice(0,5).map(function(a){return '<div class="h"><span><b>'+esc(a.name)+'</b>'+(a.order?' · #'+esc(a.order):'')+'<br><span class="meta">'+Math.round((a.fix.origEnd-a.start)/60000)+' → '+Math.round((a.end-a.start)/60000)+' min · '+esc(a.fix.reason)+'</span></span><span class="meta">'+esc(who(a.fix.by))+'</span></div>'}).join("");
+    }
+    d.insertAdjacentHTML("beforeend",h+'</div>');
+  }
+  var _s7=stats;stats=function(){_s7();addCorr()};
+  var dbb=$("dbb");if(dbb)dbb.addEventListener("click",addCorr);
+})();
+// Two-minute check alert: full-screen flashing warning with Continue / Stop timer
+(function(){
+  if(new URLSearchParams(location.search).get("display")==="1")return;
+  var GRACE=300000,dismissed={},cur=null;
+  var st=document.createElement("style");
+  st.textContent="@keyframes chkflash{0%,100%{background:#c9261b}50%{background:#7f1510}}#chk{animation:chkflash 1s infinite}@media (prefers-reduced-motion:reduce){#chk{animation:none!important}}#chk button{font-size:24px;padding:18px 22px;border-radius:14px;min-width:250px}";
+  document.head.appendChild(st);
+  var ov=document.createElement("div");ov.id="chk";ov.hidden=true;
+  ov.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center;color:#fff;background:#c9261b;overflow:auto";
+  ov.innerHTML='<div style="font-size:22px;font-weight:800;letter-spacing:1px">CHECK THIS ORDER IN THE SYSTEM</div><div id="chn" style="font-size:clamp(40px,11vw,96px);font-weight:900;line-height:1.05"></div><div id="cho" style="font-size:clamp(22px,6vw,44px);font-weight:700"></div><div id="cht" style="font-size:clamp(64px,22vw,180px);font-weight:900;font-variant-numeric:tabular-nums;line-height:1"></div><div id="chm" style="font-size:22px;font-weight:700"></div><div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:center"><button id="chc" type="button" style="background:#fff;color:#7f1510">Continue counting</button><button id="chs" type="button" style="background:#1b2220;color:#fff">Stop timer (order done)</button></div><div id="chq" style="font-size:18px"></div>';
+  document.body.appendChild(ov);
+  function pick(){
+    var now=Date.now();
+    return S.active.filter(function(a){var tot=a.mins*60000,left=tot-(now-a.start);return tot>CFG.lead*60000&&left<=CFG.lead*60000&&left>-GRACE&&!a.ack&&!dismissed[a.id]})
+      .sort(function(x,y){return (x.start+x.mins*60000)-(y.start+y.mins*60000)});
+  }
+  function paint(){
+    var c=pick();
+    if(!c.length){ov.hidden=true;cur=null;return}
+    var a=c[0],left=a.mins*60000-(Date.now()-a.start);
+    cur=a;ov.hidden=false;
+    $("chn").textContent=a.name;
+    $("cho").textContent=(a.order?"Order "+a.order:"")+(a.boxes?(a.order?" · ":"")+a.boxes+" boxes":"");
+    $("cht").textContent=(left<0?"+":"")+fmt(left);
+    $("chm").textContent=left<0?"Time is over":"Time left";
+    $("chq").textContent=c.length>1?(c.length-1)+" more order"+(c.length>2?"s":"")+" waiting for a check":"";
+  }
+  setInterval(paint,500);
+  $("chc").onclick=function(){
+    if(!cur||!DB)return;var a=cur;dismissed[a.id]=true;paint();
+    DB.doc("active/"+a.id).set({ack:{by:me(),at:Date.now()}},{merge:true}).catch(dbe);
+    lg("Checked order before time ended: continue counting",a.name+(a.order?" · order #"+a.order:""));
+  };
+  $("chs").onclick=function(){
+    if(!cur)return;var a=cur;dismissed[a.id]=true;paint();
+    lg("Checked order before time ended: stopped the timer",a.name+(a.order?" · order #"+a.order:""));
+    finish(a.id);
+  };
+  function snd(){try{return localStorage.getItem("snd")==="1"}catch(e){return false}}
+  var ctx=null,lastB=0;
+  function unlock(){try{var C=window.AudioContext||window.webkitAudioContext;if(C&&snd()){ctx=ctx||new C();if(ctx.state==="suspended")ctx.resume()}}catch(e){}}
+  ["click","touchstart"].forEach(function(ev){document.addEventListener(ev,unlock,true)});
+  setInterval(function(){
+    if(ov.hidden||!snd()||!ctx||Date.now()-lastB<4000)return;
+    lastB=Date.now();
+    try{for(var i=0;i<3;i++){var o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*0.3;o.type="square";o.frequency.value=900;o.connect(g);g.connect(ctx.destination);g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.4,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+0.2);o.start(t);o.stop(t+0.22)}}catch(e){}
+    try{if(navigator.vibrate)navigator.vibrate([300,100,300])}catch(e){}
+  },500);
+})();
+// Company settings (manager) and platform console (platform owner)
+(function(){
+  var MODAL="position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))";
+  var g2=document.querySelector("#bottombar .bg:nth-child(2) .bgrid")||$("so").parentNode.parentNode;
+  function mkModal(title,closeId,bodyId){
+    var md=document.createElement("div");md.hidden=true;md.style.cssText=MODAL;
+    md.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">'+title+'</h1><button id="'+closeId+'" type="button" class="ghost">Close</button></div><div id="'+bodyId+'"></div></div>';
+    document.body.appendChild(md);
+    $(closeId).onclick=function(){md.hidden=true;document.body.style.overflow=""};
+    return md;
+  }
+  function openM(md){md.hidden=false;document.body.style.overflow="hidden"}
+
+  // ----- company settings -----
+  var cs=mkModal("Company settings","csx","csb");
+  var row=document.createElement("div");row.className="row";row.innerHTML='<button id="csn" type="button">Company settings</button>';g2.appendChild(row);
+  function fld(id,label,val,hint){return '<label class="wide" style="margin-top:8px">'+label+'<input id="'+id+'" type="number" step="any" value="'+val+'"><span class="meta">'+hint+'</span></label>'}
+  $("csn").onclick=function(){
+    $("csb").innerHTML='<div class="meta">These numbers tune the suggested time for your warehouse. Change them only if the suggestions are often too short or too long.</div>'
+      +fld("c1","Cart capacity (kg)",CFG.cart,"Weight one trip can carry. More weight means extra trips.")
+      +fld("c2","Setup time per order (seconds)",CFG.setup,"Getting the order, cart and labels ready.")
+      +fld("c3","Walking time per box (seconds)",CFG.walk,"Average walk between picks in your warehouse.")
+      +fld("c4","Handling time per box (seconds)",CFG.handle,"Lifting, scanning and placing one average box.")
+      +fld("c5","Safety buffer (%)",CFG.buf,"Extra time added on top of the estimate.")
+      +fld("c6","Alert before the end (minutes)",CFG.lead,"When the full-screen check alert appears.")
+      +fld("c7","Auto sign-out when not used (hours)",CFG.idle,"Signs everyone out when nobody touches the screen.")
+      +'<div class="row"><button id="csv" type="button">Save settings</button></div>';
+    $("csv").onclick=function(){
+      var s={cart:+$("c1").value,setup:+$("c2").value,walk:+$("c3").value,handle:+$("c4").value,buf:+$("c5").value,lead:+$("c6").value,idle:+$("c7").value};
+      for(var k in s){if(!(s[k]>=0)){alert("Please type valid numbers.");return}}
+      if(s.cart<1||s.lead<0.5||s.idle<0.1){alert("Cart capacity must be at least 1, the alert at least 0.5 minutes, and auto sign-out at least 0.1 hours.");return}
+      RAW.doc("companies/"+CID).update({settings:s}).then(function(){CFG=Object.assign({},CFG,s);lg("Changed company settings",JSON.stringify(s));alert("Settings saved.")}).catch(dbe);
+    };
+    openM(cs);
+  };
+
+  // ----- platform console -----
+  var pm=mkModal("Platform console","pcx","pcb");
+  var prow=document.createElement("div");prow.className="row";prow.hidden=true;prow.innerHTML='<button id="pcn" type="button">Platform console</button>';g2.appendChild(prow);
+  function isPlat(){var u=firebase.auth().currentUser;return !!u&&(u.email||"").toLowerCase()===PLATFORM}
+  onRole(function(){prow.hidden=!isPlat()});
+  function slug(s){return String(s).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,30)}
+  function lst(){
+    RAW.collection("companies").get().then(function(q){
+      var h=q.docs.map(function(d){var c=d.data();return '<div class="h"><span><b>'+esc(c.name||d.id)+'</b><br><span class="meta">'+esc(d.id)+' · manager '+esc(c.owner||"")+(c.active===false?' · SUSPENDED':'')+'</span></span><button class="ghost" data-c="'+esc(d.id)+'" data-a="'+(c.active===false?"1":"0")+'" type="button">'+(c.active===false?"Resume":"Suspend")+'</button></div>'}).join("");
+      $("pl").innerHTML=h||'<div class="empty">No companies yet.</div>';
+    }).catch(function(e){$("pl").textContent="Could not load: "+((e&&e.message)||e)});
+  }
+  function create(){
+    var name=$("pn").value.trim(),id=slug($("pi").value||name),nm=$("po").value.trim(),em=$("pe").value.trim().toLowerCase();
+    if(!name||!id||!nm||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){alert("Fill in the company name, ID, manager name and a valid manager email.");return}
+    Promise.all([RAW.doc("companies/"+id).get(),RAW.doc("members/"+em).get()]).then(function(r){
+      if(r[0].exists){alert("A company with this ID already exists.");return}
+      if(r[1].exists){alert("This email already belongs to a company.");return}
+      var u=firebase.auth().currentUser,b=RAW.batch(),now=Date.now();
+      b.set(RAW.doc("companies/"+id),{name:name,active:true,owner:em,createdAt:now,settings:{}});
+      b.set(RAW.doc("members/"+em),{email:em,cid:id,role:"owner",name:nm,by:u.email,at:now});
+      b.set(RAW.doc("companies/"+id+"/people/"+em),{email:em,name:nm,role:"owner"});
+      return b.commit().then(function(){alert("Company created. The manager can now open the app, tap First time? Create my password, and sign in.");draw()});
+    }).catch(dbe);
+  }
+  function migrate(){
+    if(!CID||!confirm("Copy the old data into "+(COMP.name||CID)+"?"))return;
+    var cols=["active","app","hist","log","audit","people"],st={};
+    RAW.collection("staff").get().then(function(q){
+      q.docs.forEach(function(d){st[d.id.toLowerCase()]=d.data()});
+      return Promise.all(cols.map(function(c){return RAW.collection(c).get()}));
+    }).then(function(rs){
+      var ops=[],u=firebase.auth().currentUser;
+      rs.forEach(function(q,i){q.docs.forEach(function(d){
+        var data=d.data();
+        if(cols[i]==="people"){var k=d.id.toLowerCase();data=Object.assign({},data,{role:k===PLATFORM?"owner":((st[k]&&st[k].role==="display")?"display":"staff")})}
+        ops.push([RAW.doc("companies/"+CID+"/"+cols[i]+"/"+d.id),data]);
+      })});
+      Object.keys(st).forEach(function(k){
+        if(k===PLATFORM)return;
+        ops.push([RAW.doc("members/"+k),{email:k,cid:CID,role:st[k].role==="display"?"display":"staff",name:st[k].name||"",by:u.email,at:Date.now()}]);
+      });
+      var chain=Promise.resolve();
+      for(var i=0;i<ops.length;i+=400){(function(part){chain=chain.then(function(){var b=RAW.batch();part.forEach(function(o){b.set(o[0],o[1])});return b.commit()})})(ops.slice(i,i+400))}
+      return chain.then(function(){return ops.length});
+    }).then(function(c){alert("Copied "+c+" records. Tap Refresh to see them.")}).catch(function(e){alert("Could not copy: "+((e&&e.message)||e))});
+  }
+  function draw(){
+    $("pcb").innerHTML='<h2 style="margin-top:0">Create a company</h2>'
+      +'<input id="pn" placeholder="Company name" autocomplete="off" style="margin-bottom:8px">'
+      +'<input id="pi" placeholder="Company ID (letters, numbers, dashes)" autocomplete="off" style="margin-bottom:8px">'
+      +'<input id="po" placeholder="Manager full name" autocomplete="off" style="margin-bottom:8px">'
+      +'<input id="pe" type="email" placeholder="Manager email" autocomplete="off">'
+      +'<div class="row"><button id="pgo" type="button">Create company</button></div>'
+      +'<h2>Companies</h2><div id="pl" class="meta">Loading...</div>'
+      +(CID?'<h2>Move my old data</h2><div class="meta">Copies everything from the first version of this app into your current company ('+esc(COMP.name||CID)+'). Safe to run more than once.</div><div class="row"><button id="pmv" type="button" class="ghost">Copy old data into my company</button></div>':'');
+    $("pn").oninput=function(){if(!$("pi").dataset.t)$("pi").value=slug($("pn").value)};
+    $("pi").oninput=function(){$("pi").dataset.t="1"};
+    $("pgo").onclick=create;
+    var mv=$("pmv");if(mv)mv.onclick=migrate;
+    lst();
+  }
+  $("pcb").onclick=function(e){
+    var b=e.target.closest("button[data-c]");if(!b)return;
+    var on=b.dataset.a==="1";
+    if(!confirm((on?"Resume ":"Suspend ")+b.dataset.c+"?"))return;
+    RAW.doc("companies/"+b.dataset.c).update({active:on}).then(lst).catch(dbe);
+  };
+  $("pcn").onclick=function(){draw();openM(pm)};
+  window.addEventListener("openplatform",function(){draw();openM(pm)});
+})();
+</script>
+</body>
+</html>
