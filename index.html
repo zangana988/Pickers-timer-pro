@@ -1242,6 +1242,201 @@ rr();render();stats();setInterval(render,1000);
   $("pcn").onclick=function(){draw();openM(pm)};
   window.addEventListener("openplatform",function(){draw();openM(pm)});
 })();
+  // Owner and company entry: first page, and the owner's home with all companies
+(function(){
+  var MODAL="position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))";
+  var DISP=new URLSearchParams(location.search).get("display")==="1";
+  function plat(u){return !!u&&(u.email||"").toLowerCase()===PLATFORM}
+  var _who=who;
+  who=function(e){var s=_who(e);return String(e||"").toLowerCase()===PLATFORM?s.replace(/ \((Manager|Supervisor|Display)\)$/," (Owner)"):s};
+
+  // ---------- first page: owner or company ----------
+  var mode=null;
+  var ch=document.createElement("div");ch.id="chooser";ch.hidden=true;
+  ch.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:80;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center";
+  ch.innerHTML='<h1 style="font-size:32px;margin:0">Picker Timers</h1><div class="meta" style="margin-bottom:8px;font-size:17px">Who is signing in?</div><button id="chO" type="button" style="font-size:22px;padding:20px;min-width:270px">I am the owner</button><button id="chC" type="button" style="font-size:22px;padding:20px;min-width:270px">I am with a company</button><div id="chw" class="meta" style="color:var(--bad);max-width:320px"></div>';
+  document.body.appendChild(ch);
+  $("lg").insertAdjacentHTML("afterbegin",'<div id="lt" class="wide" style="font-weight:800;font-size:20px"></div>');
+  $("lk").insertAdjacentHTML("afterbegin",'<button class="ghost" id="lback" type="button">← Back</button>');
+  function showChooser(){ch.hidden=DISP||!!mode||!!firebase.auth().currentUser}
+  function applyMode(){
+    $("lt").textContent=mode==="owner"?"Owner sign-in":"Company sign-in";
+    $("lreg").style.display=mode==="owner"?"none":"";
+    showChooser();
+  }
+  try{var cm=sessionStorage.getItem("chw");if(cm){$("chw").textContent=cm;sessionStorage.removeItem("chw")}}catch(e){}
+  $("chO").onclick=function(){mode="owner";$("chw").textContent="";applyMode()};
+  $("chC").onclick=function(){mode="company";$("chw").textContent="";applyMode()};
+  $("lback").onclick=function(){mode=null;showChooser()};
+  firebase.auth().onAuthStateChanged(function(u){
+    if(u&&mode==="owner"&&!plat(u)){
+      try{sessionStorage.setItem("chw",'That account is not the owner account. Choose "I am with a company" to sign in.')}catch(e){}
+      firebase.auth().signOut().then(function(){location.reload()});
+      return;
+    }
+    showChooser();
+  });
+
+  // ---------- owner home ----------
+  var ow=document.createElement("div");ow.id="ow";ow.hidden=true;
+  $("gt").insertAdjacentElement("afterend",ow);
+  function sync(){
+    var show=plat(firebase.auth().currentUser)&&!$("gt").hidden;
+    $("gt").style.display=show?"none":"";
+    if(show&&ow.hidden){ow.hidden=false;var h=document.querySelector("main h1");if(h)h.textContent="Picker Timers · Owner";ownerDraw()}
+    if(!show)ow.hidden=true;
+  }
+  new MutationObserver(sync).observe($("gt"),{attributes:true,attributeFilter:["hidden"]});
+  firebase.auth().onAuthStateChanged(function(){setTimeout(sync,60)});
+  function slug(s){return String(s).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,30)}
+  function mkModal(title,closeId,bodyId){
+    var md=document.createElement("div");md.hidden=true;md.style.cssText=MODAL;
+    md.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">'+title+'</h1><button id="'+closeId+'" type="button" class="ghost">Close</button></div><div id="'+bodyId+'"></div></div>';
+    document.body.appendChild(md);
+    $(closeId).onclick=function(){md.hidden=true;document.body.style.overflow=""};
+    return md;
+  }
+  var mm=mkModal("Manager access","mmx","mmb"),mmC=null;
+  function openCo(id){
+    var u=firebase.auth().currentUser;
+    RAW.doc("members/"+PLATFORM).set({email:PLATFORM,cid:id,role:"owner",name:"Platform owner",by:u.email,at:Date.now()}).then(function(){location.reload()}).catch(dbe);
+  }
+  function ownerDraw(){
+    ow.innerHTML='<h2 style="margin-top:0">Your companies</h2><div id="ocl" class="meta">Loading...</div>'
+      +'<details style="margin-top:12px"><summary>Add a company</summary><div style="margin-top:10px">'
+      +'<input id="pn" placeholder="Company name" autocomplete="off" style="margin-bottom:8px">'
+      +'<input id="pi" placeholder="Company ID (letters, numbers, dashes)" autocomplete="off" style="margin-bottom:8px">'
+      +'<input id="po" placeholder="Manager full name" autocomplete="off" style="margin-bottom:8px">'
+      +'<input id="pe" type="email" placeholder="Manager email" autocomplete="off">'
+      +'<div class="row"><button id="pgo" type="button">Create company</button></div></div></details>'
+      +'<div class="row"><button class="ghost" id="oso" type="button">Sign out</button></div>';
+    $("pn").oninput=function(){if(!$("pi").dataset.t)$("pi").value=slug($("pn").value)};
+    $("pi").oninput=function(){$("pi").dataset.t="1"};
+    $("pgo").onclick=create;
+    $("oso").onclick=function(){firebase.auth().signOut().then(function(){location.reload()})};
+    lst();
+  }
+  function lst(){
+    RAW.collection("companies").get().then(function(q){
+      var h=q.docs.map(function(d){
+        var c=d.data(),off=c.active===false;
+        return '<div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,.10),0 4px 12px rgba(0,0,0,.06)"><div style="font-size:18px;font-weight:800">'+esc(c.name||d.id)+'</div><div class="meta">ID '+esc(d.id)+' · manager '+esc(c.owner||"–")+(off?' · SUSPENDED':'')+'</div>'
+          +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:10px">'
+          +'<button data-a="open" data-c="'+esc(d.id)+'" type="button">Open</button>'
+          +'<button class="ghost" data-a="mgr" data-c="'+esc(d.id)+'" type="button">Manager access</button>'
+          +'<button class="ghost" data-a="imp" data-c="'+esc(d.id)+'" type="button">Import old data</button>'
+          +'<button class="ghost" data-a="sus" data-c="'+esc(d.id)+'" data-on="'+(off?"1":"0")+'" type="button">'+(off?"Resume":"Suspend")+'</button></div></div>';
+      }).join("");
+      $("ocl").innerHTML=h||'<div class="empty">No companies yet. Tap "Add a company" below.</div>';
+    }).catch(function(e){$("ocl").textContent="Could not load: "+((e&&e.message)||e)});
+  }
+  ow.addEventListener("click",function(e){
+    var b=e.target.closest("button[data-a]");if(!b)return;
+    var id=b.dataset.c,a=b.dataset.a;
+    if(a==="open")openCo(id);
+    else if(a==="mgr")mgrOpen(id);
+    else if(a==="imp")importOld(id);
+    else if(a==="sus"){var on=b.dataset.on==="1";if(!confirm((on?"Resume ":"Suspend ")+id+"?"))return;RAW.doc("companies/"+id).update({active:on}).then(lst).catch(dbe)}
+  });
+  function create(){
+    var name=$("pn").value.trim(),id=slug($("pi").value||name),nm=$("po").value.trim(),em=$("pe").value.trim().toLowerCase();
+    if(!name||!id||!nm||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){alert("Fill in the company name, ID, manager name and a valid manager email.");return}
+    Promise.all([RAW.doc("companies/"+id).get(),RAW.doc("members/"+em).get()]).then(function(r){
+      if(r[0].exists){alert("A company with this ID already exists.");return}
+      if(r[1].exists){alert("This email already belongs to a company.");return}
+      var u=firebase.auth().currentUser,b=RAW.batch(),now=Date.now();
+      b.set(RAW.doc("companies/"+id),{name:name,active:true,owner:em,createdAt:now,settings:{}});
+      b.set(RAW.doc("members/"+em),{email:em,cid:id,role:"owner",name:nm,by:u.email,at:now});
+      b.set(RAW.doc("companies/"+id+"/people/"+em),{email:em,name:nm,role:"owner"});
+      return b.commit().then(function(){alert("Company created. The manager can now open the app, choose I am with a company, tap First time? Create my password, and sign in.");ownerDraw()});
+    }).catch(dbe);
+  }
+  // ----- grant or remove manager access for a company -----
+  function mgrOpen(id){
+    mmC=id;mm.hidden=false;document.body.style.overflow="hidden";
+    $("mmb").innerHTML='<div class="meta" style="margin-bottom:8px">Company: <b>'+esc(id)+'</b>. A manager sees everything in this company and can add supervisors and display tablets.</div>'
+      +'<input id="mn" placeholder="Manager full name" autocomplete="off" style="margin-bottom:8px"><input id="me" type="email" placeholder="Manager email" autocomplete="off">'
+      +'<div class="row"><button id="mgo" type="button">Give manager access</button></div><h2>Current managers</h2><div id="ml" class="meta">Loading...</div>';
+    $("mgo").onclick=function(){
+      var nm=$("mn").value.trim(),em=$("me").value.trim().toLowerCase(),u=firebase.auth().currentUser;
+      if(!nm||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){alert("Type the manager's full name and a valid email.");return}
+      RAW.doc("members/"+em).get().then(function(s){
+        if(s.exists&&s.data().cid!==mmC){alert("This email already belongs to another company.");return}
+        var b=RAW.batch(),now=Date.now();
+        b.set(RAW.doc("members/"+em),{email:em,cid:mmC,role:"owner",name:nm,by:u.email,at:now});
+        b.set(RAW.doc("companies/"+mmC+"/people/"+em),{email:em,name:nm,role:"owner"});
+        b.update(RAW.doc("companies/"+mmC),{owner:em});
+        return b.commit().then(function(){$("mn").value="";$("me").value="";mgrList();lst()});
+      }).catch(dbe);
+    };
+    mgrList();
+  }
+  function mgrList(){
+    RAW.collection("members").where("cid","==",mmC).get().then(function(q){
+      var m=q.docs.map(function(d){return d.data()}).filter(function(x){return x.role==="owner"&&String(x.email).toLowerCase()!==PLATFORM});
+      $("ml").innerHTML=m.length?m.map(function(x){return '<div class="h"><span><b>'+esc(x.name||"")+'</b><br><span class="meta">'+esc(x.email)+'</span></span><button class="ghost" data-e="'+esc(x.email)+'" type="button">Remove</button></div>'}).join(""):'<div class="empty">No manager yet.</div>';
+    }).catch(function(e){$("ml").textContent="Could not load: "+((e&&e.message)||e)});
+  }
+  $("mmb").addEventListener("click",function(e){
+    var b=e.target.closest("button[data-e]");if(!b)return;
+    if(!confirm("Remove manager access for "+b.dataset.e+"?"))return;
+    RAW.doc("members/"+b.dataset.e).delete().then(mgrList).catch(dbe);
+  });
+  // ----- copy the first version's data into a company -----
+  function importOld(cid){
+    if(!confirm("Copy the first-version data into company "+cid+"? It is safe to run more than once."))return;
+    var u=firebase.auth().currentUser,cols=["active","app","hist","log","audit","people"],st={};
+    function release(){return RAW.doc("members/"+PLATFORM).delete().catch(function(){})}
+    RAW.doc("members/"+PLATFORM).set({email:PLATFORM,cid:cid,role:"owner",name:"Platform owner",by:u.email,at:Date.now()})
+    .then(function(){return RAW.collection("staff").get()})
+    .then(function(q){
+      q.docs.forEach(function(d){st[d.id.toLowerCase()]=d.data()});
+      return Promise.all(cols.map(function(c){return RAW.collection(c).get()}));
+    }).then(function(rs){
+      var ops=[];
+      rs.forEach(function(q,i){q.docs.forEach(function(d){
+        var data=d.data();
+        if(cols[i]==="people"){var k=d.id.toLowerCase();data=Object.assign({},data,{role:k===PLATFORM?"owner":((st[k]&&st[k].role==="display")?"display":"staff")})}
+        ops.push([RAW.doc("companies/"+cid+"/"+cols[i]+"/"+d.id),data]);
+      })});
+      Object.keys(st).forEach(function(k){
+        if(k===PLATFORM)return;
+        ops.push([RAW.doc("members/"+k),{email:k,cid:cid,role:st[k].role==="display"?"display":"staff",name:st[k].name||"",by:u.email,at:Date.now()}]);
+      });
+      var chain=Promise.resolve();
+      for(var i=0;i<ops.length;i+=400){(function(part){chain=chain.then(function(){var b=RAW.batch();part.forEach(function(o){b.set(o[0],o[1])});return b.commit()})})(ops.slice(i,i+400))}
+      return chain.then(function(){return ops.length});
+    }).then(function(c){return release().then(function(){alert("Copied "+c+" records into "+cid+".")})})
+    .catch(function(e){release().then(function(){alert("Could not copy: "+((e&&e.message)||e))})});
+  }
+
+  // ---------- inside a company, the owner can go back to all companies ----------
+  var g2=document.querySelector("#bottombar .bg:nth-child(2) .bgrid")||$("so").parentNode.parentNode;
+  var pc=$("pcn");if(pc&&pc.parentNode)pc.parentNode.remove();
+  var ar=document.createElement("div");ar.className="row";ar.hidden=true;ar.innerHTML='<button id="allc" type="button">All companies (owner)</button>';g2.appendChild(ar);
+  $("allc").onclick=function(){RAW.doc("members/"+PLATFORM).delete().then(function(){location.reload()}).catch(dbe)};
+  onRole(function(u){
+    ar.hidden=!plat(u);
+    if(plat(u)&&CID){
+      var k="po_"+CID;
+      try{if(!sessionStorage.getItem(k)){sessionStorage.setItem(k,"1");lg("Platform owner opened this company","")}}catch(e){}
+    }
+  });
+})();
+  // Change of owner account: zanganam88@gmail.com is the owner (must have a verified email)
+PLATFORM="zanganam88@gmail.com";
+(function(){
+  var ow=$("ow");
+  function unverifiedOwner(){var u=firebase.auth().currentUser;return !!u&&(u.email||"").toLowerCase()===PLATFORM&&!u.emailVerified}
+  function paint(){
+    if(!ow||ow.hidden||!unverifiedOwner())return;
+    ow.innerHTML='<div id="ocl" hidden></div><h2 style="margin-top:0">Verify the owner email</h2><div class="meta" style="margin-bottom:10px">For safety, the owner account must have a verified email. Tap Send email, open the link in the email, then tap Check again.</div><div class="row"><button id="ovs" type="button">Send email</button><button id="ovc" type="button">Check again</button><button class="ghost" id="ovo" type="button">Sign out</button></div>';
+    $("ovs").onclick=function(){var u=firebase.auth().currentUser;u.sendEmailVerification().then(function(){alert("Verification email sent. Check your inbox and spam.")}).catch(function(e){alert("Could not send: "+((e&&e.message)||e))})};
+    $("ovc").onclick=function(){var u=firebase.auth().currentUser;u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})};
+    $("ovo").onclick=function(){firebase.auth().signOut().then(function(){location.reload()})};
+  }
+  new MutationObserver(paint).observe(ow,{attributes:true,attributeFilter:["hidden"]});
+})();
 </script>
 </body>
 </html>
