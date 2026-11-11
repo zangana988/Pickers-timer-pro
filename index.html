@@ -1495,6 +1495,302 @@ PLATFORM="zanganam88@gmail.com";
   var bb=document.getElementById("bottombar");
   if(bb){var f=document.createElement("div");f.style.cssText="display:flex;justify-content:center;margin:14px 0 4px";f.innerHTML=wm(26);bb.appendChild(f)}
 })();
+  // Menu pages: Pickers management + Expirations management (manager only, Excel import)
+(function(){
+  var LG=(document.querySelector('link[rel="icon"]')||{}).href||"";
+  var ap=$("ap"),page="menu",ROWS=[],loaded=false,alerted=false,flt="all",q="",lim=300,sub=false,META={n:0,count:0},PEND=null;
+  var RED="#c9261b",ORG="#e07b00",YEL="#b8960a",GRN="#168a3e",CH=2000;
+  function badge(s){return LG?'<img src="'+LG+'" width="'+s+'" height="'+s+'" alt="" style="border-radius:20%;vertical-align:middle;flex:none">':""}
+  var FULL="position:fixed;top:0;right:0;bottom:0;left:0;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px))";
+
+  // ---------- menu page ----------
+  var hub=document.createElement("div");hub.hidden=true;hub.style.cssText=FULL+";z-index:45";
+  hub.innerHTML='<div style="max-width:520px;margin:0 auto;text-align:center;padding-top:28px">'+badge(88)
+    +'<div style="font-weight:900;font-size:36px;letter-spacing:.08em;line-height:1.1;margin-top:8px;color:var(--wma,var(--ink))">ALPHA <span style="color:var(--wmb,var(--ink))">WMS</span></div>'
+    +'<div id="hco" class="meta" style="margin:6px 0 0;font-size:16px"></div>'
+    +'<div style="display:grid;gap:14px;margin-top:30px">'
+    +'<button id="hp" type="button" style="padding:22px 14px;font-size:20px">Pickers management</button>'
+    +'<button id="he" type="button" style="padding:22px 14px;font-size:20px">Expirations management<div id="hes" style="font-size:14px;font-weight:600;margin-top:6px"></div></button></div>'
+    +'<div class="row" style="margin-top:22px"><button id="hso" type="button" class="ghost">Sign out</button></div></div>';
+  document.body.appendChild(hub);
+
+  // ---------- expirations page ----------
+  var ex=document.createElement("div");ex.hidden=true;ex.style.cssText=FULL+";z-index:46";
+  ex.innerHTML='<div style="max-width:720px;margin:0 auto">'
+    +'<div class="row" style="margin:0 0 10px"><h1 style="margin:0;font-size:22px;display:flex;align-items:center;gap:8px">'+badge(28)+'<span>Expirations</span></h1><button id="exm" type="button" class="ghost">Menu</button></div>'
+    +'<div id="exs" class="meta"></div>'
+    +'<div id="exc" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin:12px 0"></div>'
+    +'<input id="exq" placeholder="Search location or product" autocomplete="off" style="margin-bottom:10px">'
+    +'<div id="exl"></div>'
+    +'<details id="exi" style="margin-top:14px"><summary>Import from Excel</summary><div style="margin-top:10px">'
+    +'<div class="meta" style="margin-bottom:8px">Choose your Excel file (.xlsx, or .csv). It needs three columns: location, product, expiry date. Importing replaces the current list.</div>'
+    +'<input id="exf" type="file" accept=".xlsx,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv">'
+    +'<div id="exmap" style="margin-top:10px"></div>'
+    +'<div class="row" style="margin-top:14px"><button id="exclr" type="button" class="ghost">Clear the whole list</button></div></div></details></div>';
+  document.body.appendChild(ex);
+
+  // ---------- menu button on the pickers page ----------
+  var mb=document.createElement("button");mb.type="button";mb.className="ghost";mb.textContent="Menu";mb.hidden=true;mb.style.cssText="margin-left:14px";
+  var bar=$("brand");if(bar)bar.appendChild(mb);else ap.insertBefore(mb,ap.firstChild);
+
+  function sync(){
+    var own=ROLE==="owner"&&!ap.hidden;
+    if(ap.hidden)page="menu";
+    hub.hidden=!(own&&page==="menu");ex.hidden=!(own&&page==="exp");mb.hidden=!own;
+    if(own){$("hco").textContent=COMP&&COMP.name||"";subscribe();drawHub()}
+  }
+  new MutationObserver(sync).observe(ap,{attributes:true,attributeFilter:["hidden"]});
+  window.addEventListener("rolechange",sync);
+  $("hp").onclick=function(){page="pick";sync()};
+  $("he").onclick=function(){page="exp";sync();draw()};
+  mb.onclick=function(){page="menu";sync()};
+  $("exm").onclick=function(){page="menu";sync()};
+  $("hso").onclick=function(){$("so").click()};
+
+  // ---------- dates ----------
+  function today0(){var d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate())}
+  function addM(d,n){var t=new Date(d.getFullYear(),d.getMonth()+n,1),last=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();t.setDate(Math.min(d.getDate(),last));return t}
+  function parseISO(s){var m=/^(\d{4})-(\d\d)-(\d\d)$/.exec(s);return m?new Date(+m[1],+m[2]-1,+m[3]):null}
+  function p2(n){return (n<10?"0":"")+n}
+  function iso(y,m,d){var t=new Date(y,m-1,d);if(t.getFullYear()!==y||t.getMonth()!==m-1||t.getDate()!==d)return "";return y+"-"+p2(m)+"-"+p2(d)}
+  function toISO(v){
+    if(v===null||v===undefined||v==="")return "";
+    if(typeof v==="number"){if(v>20000&&v<80000){var t=new Date(Date.UTC(1899,11,30)+Math.floor(v)*864e5);return iso(t.getUTCFullYear(),t.getUTCMonth()+1,t.getUTCDate())}return ""}
+    var s=String(v).trim(),m;
+    if(/^\d{5}$/.test(s))return toISO(+s);
+    if((m=/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/.exec(s)))return iso(+m[1],+m[2],+m[3]);
+    if((m=/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4}|\d{2})$/.exec(s)))return iso(+m[3]<100?2000+(+m[3]):+m[3],+m[2],+m[1]);
+    if((m=/^(\d{1,2})[-\/.](\d{4})$/.exec(s))){var mo=+m[1],y=+m[2];if(mo<1||mo>12)return "";return iso(y,mo,new Date(y,mo,0).getDate())}
+    var p=Date.parse(s);if(!isNaN(p)){var d=new Date(p);return iso(d.getFullYear(),d.getMonth()+1,d.getDate())}
+    return "";
+  }
+  function show(s){var d=parseISO(s);return d?p2(d.getDate())+"/"+p2(d.getMonth()+1)+"/"+d.getFullYear():s}
+
+  // ---------- classify + draw ----------
+  function info(r,t,l1,l3,l6){
+    var d=parseISO(r.e);if(!d)return {k:"x",c:GRN,left:""};
+    var days=Math.round((d-t)/864e5);
+    var k=d<t?"exp":d<=l1?"w1":d<=l3?"w3":d<=l6?"w6":"ok";
+    var c=k==="exp"?RED:k==="w1"?ORG:k==="w3"?YEL:GRN;
+    var left=days<0?"Expired "+(-days)+" day"+(days===-1?"":"s")+" ago":days===0?"Expires today":days+" day"+(days===1?"":"s")+" left";
+    return {k:k,c:c,left:left,d:d};
+  }
+  function counts(){
+    var t=today0(),l1=addM(t,1),l3=addM(t,3),l6=addM(t,6),n={all:ROWS.length,exp:0,w1:0,w3:0,w6:0};
+    ROWS.forEach(function(r){var i=info(r,t,l1,l3,l6);if(i.k==="exp")n.exp++;else if(i.k==="w1"){n.w1++;n.w3++;n.w6++}else if(i.k==="w3"){n.w3++;n.w6++}else if(i.k==="w6")n.w6++});
+    return n;
+  }
+  function drawHub(){
+    var n=counts(),e=$("hes");
+    if(!ROWS.length){e.textContent=loaded?"No products yet. Import your Excel file.":"";e.style.color="";return}
+    e.textContent=(n.exp?n.exp+" expired · ":"")+n.w1+" within 1 month";
+    e.style.color=(n.exp||n.w1)?"#ffb4ab":"";
+  }
+  function btnStyle(k){return k===flt?"":"background:transparent;color:var(--ink);border:2px solid var(--line)"}
+  function draw(){
+    var n=counts(),t=today0(),l1=addM(t,1),l3=addM(t,3),l6=addM(t,6);
+    var F=[["all","All"],["exp","Expired"],["w1","1 month"],["w3","3 months"],["w6","6 months"]];
+    $("exc").innerHTML=F.map(function(f){return '<button type="button" data-f="'+f[0]+'" style="padding:10px 6px;font-size:15px;'+btnStyle(f[0])+'">'+f[1]+'<div style="font-size:20px;font-weight:800;margin-top:2px">'+n[f[0]]+'</div></button>'}).join("");
+    Array.prototype.forEach.call($("exc").querySelectorAll("button"),function(b){b.onclick=function(){flt=b.dataset.f;lim=300;draw()}});
+    var ql=q.trim().toLowerCase();
+    var list=ROWS.map(function(r){return {r:r,i:info(r,t,l1,l3,l6)}}).filter(function(x){
+      if(flt==="exp"&&x.i.k!=="exp")return false;
+      if(flt==="w1"&&x.i.k!=="w1")return false;
+      if(flt==="w3"&&x.i.k!=="w1"&&x.i.k!=="w3")return false;
+      if(flt==="w6"&&x.i.k!=="w1"&&x.i.k!=="w3"&&x.i.k!=="w6")return false;
+      return !ql||(x.r.l+" "+x.r.p).toLowerCase().indexOf(ql)>=0;
+    });
+    list.sort(function(a,b){return a.r.e<b.r.e?-1:a.r.e>b.r.e?1:0});
+    var h=list.slice(0,lim).map(function(x){
+      return '<div style="border-left:6px solid '+x.i.c+';background:var(--card);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;box-shadow:0 1px 2px rgba(0,0,0,.10)">'
+        +'<div style="font-weight:700;overflow-wrap:anywhere">'+esc(x.r.p||"(no name)")+'</div><div style="font-weight:800;color:'+x.i.c+'">'+show(x.r.e)+'</div>'
+        +'<div class="meta" style="overflow-wrap:anywhere">Location: '+esc(x.r.l||"-")+'</div><div class="meta" style="text-align:right">'+x.i.left+'</div></div>';
+    }).join("");
+    if(!list.length)h='<div class="empty">'+(ROWS.length?"Nothing matches this filter.":"No products yet. Open Import from Excel below.")+'</div>';
+    if(list.length>lim)h+='<div class="row"><button id="exmore" type="button" class="ghost">Show more ('+(list.length-lim)+' left)</button></div>';
+    $("exl").innerHTML='<div class="meta" style="margin-bottom:8px">'+list.length+' product'+(list.length===1?"":"s")+' · <b style="color:'+RED+'">red</b> expired · <b style="color:'+ORG+'">orange</b> within 1 month · <b style="color:'+YEL+'">yellow</b> within 3 months · <b style="color:'+GRN+'">green</b> later</div>'+h;
+    var mo=$("exmore");if(mo)mo.onclick=function(){lim+=300;draw()};
+    $("exi").open=!ROWS.length||$("exi").open;
+  }
+  $("exq").oninput=function(){q=this.value;lim=300;draw()};
+
+  // ---------- shared data ----------
+  function subscribe(){
+    if(sub||!DB||ROLE!=="owner")return;sub=true;
+    DB.collection("app").onSnapshot(function(s){
+      var parts=[],meta=null;
+      s.docs.forEach(function(d){
+        var m=/^exp_(\d+)$/.exec(d.id);if(m)parts.push([+m[1],(d.data().rows)||[]]);
+        else if(d.id==="expmeta")meta=d.data();
+      });
+      parts.sort(function(a,b){return a[0]-b[0]});
+      ROWS=[];parts.forEach(function(p){ROWS=ROWS.concat(p[1])});
+      META=meta||{n:parts.length,count:ROWS.length};
+      $("exs").textContent=meta&&meta.at?"Last import: "+new Date(meta.at).toLocaleString()+(meta.file?" · "+meta.file:"")+" · "+ROWS.length+" products":(ROWS.length?ROWS.length+" products":"");
+      var first=!loaded;loaded=true;drawHub();draw();
+      if(first&&!alerted)alertOnOpen();
+    },function(){$("exs").textContent="Cannot read the expiry data. Check your connection and manager access."});
+  }
+  function alertOnOpen(){
+    var n=counts();alerted=true;
+    if(!n.exp&&!n.w1)return;
+    var a=document.createElement("div");
+    a.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:95;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:20px";
+    a.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:16px;padding:22px;max-width:380px;width:100%;text-align:center;border-top:8px solid '+(n.exp?RED:ORG)+'">'
+      +'<div style="font-size:42px;line-height:1">&#9888;</div><h2 style="margin:8px 0">Expiry alert</h2>'
+      +(n.exp?'<div style="font-size:18px;color:'+RED+';font-weight:800">'+n.exp+' product'+(n.exp===1?"":"s")+' expired</div>':"")
+      +(n.w1?'<div style="font-size:18px;color:'+ORG+';font-weight:800;margin-top:4px">'+n.w1+' expiring within 1 month</div>':"")
+      +'<div class="row" style="margin-top:18px"><button id="axo" type="button">Open Expirations</button><button id="axl" type="button" class="ghost">Later</button></div></div>';
+    document.body.appendChild(a);
+    $("axl").onclick=function(){a.remove()};
+    $("axo").onclick=function(){a.remove();flt=n.exp?"exp":"w1";page="exp";sync();draw()};
+  }
+
+  // ---------- Excel / CSV reading ----------
+  function u16(v,o){return v.getUint16(o,true)}function u32(v,o){return v.getUint32(o,true)}
+  function inflate(u8){
+    if(typeof DecompressionStream==="undefined")return Promise.reject(new Error("This browser cannot open .xlsx here. Save the file as CSV and choose it again."));
+    var ds=new DecompressionStream("deflate-raw"),w=ds.writable.getWriter();w.write(u8);w.close();
+    return new Response(ds.readable).arrayBuffer().then(function(b){return new Uint8Array(b)});
+  }
+  function unzip(buf){
+    var v=new DataView(buf),u8=new Uint8Array(buf),e=-1,i;
+    for(i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-66000);i--){if(u32(v,i)===0x06054b50){e=i;break}}
+    if(e<0)throw new Error("This is not an .xlsx file.");
+    var n=u16(v,e+10),p=u32(v,e+16),files={},dec=new TextDecoder();
+    for(var k=0;k<n;k++){
+      if(u32(v,p)!==0x02014b50)break;
+      var nl=u16(v,p+28),el=u16(v,p+30),cl=u16(v,p+32);
+      files[dec.decode(u8.subarray(p+46,p+46+nl))]={m:u16(v,p+10),cs:u32(v,p+20),lo:u32(v,p+42)};
+      p+=46+nl+el+cl;
+    }
+    function get(name){
+      var f=files[name];if(!f)return Promise.resolve(null);
+      var s=f.lo+30+u16(v,f.lo+26)+u16(v,f.lo+28),d=new Uint8Array(buf,s,f.cs);
+      return (f.m===0?Promise.resolve(d):inflate(d)).then(function(x){return new TextDecoder().decode(x)});
+    }
+    return {names:Object.keys(files),get:get};
+  }
+  function xml(s){return new DOMParser().parseFromString(s,"application/xml")}
+  function colIdx(ref){var m=/^([A-Z]+)/.exec(ref||"");if(!m)return 0;var n=0;for(var i=0;i<m[1].length;i++)n=n*26+m[1].charCodeAt(i)-64;return n-1}
+  function readXlsx(buf){
+    var z=unzip(buf),SS=[],sheet="xl/worksheets/sheet1.xml";
+    return z.get("xl/sharedStrings.xml").then(function(t){
+      if(t)Array.prototype.forEach.call(xml(t).getElementsByTagName("si"),function(si){
+        var s="";Array.prototype.forEach.call(si.getElementsByTagName("t"),function(x){if(!x.parentNode||x.parentNode.nodeName!=="rPh")s+=x.textContent});SS.push(s)});
+      return Promise.all([z.get("xl/workbook.xml"),z.get("xl/_rels/workbook.xml.rels")]);
+    }).then(function(a){
+      try{
+        var sh=xml(a[0]).getElementsByTagName("sheet")[0],rid=sh&&(sh.getAttribute("r:id")||sh.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships","id"));
+        Array.prototype.forEach.call(xml(a[1]).getElementsByTagName("Relationship"),function(r){
+          if(r.getAttribute("Id")===rid){var t=r.getAttribute("Target").replace(/^\/?(xl\/)?/,"");sheet="xl/"+t}});
+      }catch(e){}
+      if(z.names.indexOf(sheet)<0){sheet=z.names.filter(function(n){return /^xl\/worksheets\/sheet\d+\.xml$/.test(n)}).sort()[0]}
+      return z.get(sheet);
+    }).then(function(t){
+      if(!t)throw new Error("No sheet found in this file.");
+      var rows=[];
+      Array.prototype.forEach.call(xml(t).getElementsByTagName("row"),function(r){
+        var row=[];
+        Array.prototype.forEach.call(r.getElementsByTagName("c"),function(c){
+          var ty=c.getAttribute("t"),ve=c.getElementsByTagName("v")[0],v=ve?ve.textContent:"";
+          if(ty==="s")v=SS[+v]||"";
+          else if(ty==="inlineStr"){v="";Array.prototype.forEach.call(c.getElementsByTagName("t"),function(x){v+=x.textContent})}
+          else if(ty!=="str"&&ty!=="e"&&ty!=="b"&&v!==""&&!isNaN(+v))v=+v;
+          var i=colIdx(c.getAttribute("r"));while(row.length<i)row.push("");row[i]=v;
+        });
+        rows.push(row);
+      });
+      return rows;
+    });
+  }
+  function readCsv(text){
+    text=text.replace(/^﻿/,"");
+    var first=text.split(/\r?\n/)[0]||"",d=";",best=0;
+    [";",",","\t"].forEach(function(c){var k=first.split(c).length;if(k>best){best=k;d=c}});
+    var rows=[],row=[],cur="",inq=false;
+    for(var i=0;i<text.length;i++){
+      var ch=text[i];
+      if(inq){if(ch==='"'){if(text[i+1]==='"'){cur+='"';i++}else inq=false}else cur+=ch}
+      else if(ch==='"')inq=true;
+      else if(ch===d){row.push(cur);cur=""}
+      else if(ch==="\n"||ch==="\r"){if(ch==="\r"&&text[i+1]==="\n")i++;row.push(cur);cur="";rows.push(row);row=[]}
+      else cur+=ch;
+    }
+    if(cur!==""||row.length){row.push(cur);rows.push(row)}
+    return rows;
+  }
+
+  // ---------- import screen ----------
+  function letter(i){var s="";i++;while(i>0){var m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26)}return s}
+  $("exf").onchange=function(){
+    var f=this.files[0],box=$("exmap");if(!f)return;
+    box.innerHTML='<div class="meta">Reading...</div>';
+    var isCsv=/\.(csv|txt)$/i.test(f.name),fr=new FileReader();
+    fr.onerror=function(){box.innerHTML='<div class="meta" style="color:var(--bad)">Could not read the file.</div>'};
+    fr.onload=function(){
+      var p;
+      try{p=isCsv?Promise.resolve(readCsv(fr.result)):readXlsx(fr.result)}catch(e){p=Promise.reject(e)}
+      p.then(function(rows){choose(rows,f.name)}).catch(function(e){box.innerHTML='<div class="meta" style="color:var(--bad)">'+esc((e&&e.message)||"Could not open this file. Use .xlsx or .csv.")+'</div>'});
+    };
+    if(isCsv)fr.readAsText(f);else fr.readAsArrayBuffer(f);
+  };
+  function choose(rows,fname){
+    rows=rows.filter(function(r){return r.some(function(c){return String(c).trim()!==""})});
+    if(!rows.length){$("exmap").innerHTML='<div class="meta" style="color:var(--bad)">The file is empty.</div>';return}
+    var w=0;rows.forEach(function(r){if(r.length>w)w=r.length});
+    var head=rows[0],hasHead=head.some(function(c){return typeof c==="string"&&c.trim()!==""&&!toISO(c)})&&!head.some(function(c){return toISO(c)});
+    var names=[];for(var i=0;i<w;i++)names.push(hasHead&&String(head[i]||"").trim()?String(head[i]).trim():"Column "+letter(i));
+    function find(re,skip){for(var i=0;i<w;i++)if(skip.indexOf(i)<0&&hasHead&&re.test(String(head[i]||"")))return i;return -1}
+    var ie=find(/exp|best|valid|use by|until|date/i,[]),il=find(/loc|shelf|place|bay|aisle|rack|position|zone/i,[ie]),ip=find(/prod|item|name|desc|article|sku|material/i,[ie,il]);
+    var free=[0,1,2,3,4,5].filter(function(x){return x<w&&x!==ie&&x!==il&&x!==ip});
+    if(il<0)il=free.shift();if(ip<0)ip=free.shift();if(ie<0)ie=free.shift();
+    if(il===undefined)il=0;if(ip===undefined)ip=Math.min(1,w-1);if(ie===undefined)ie=Math.min(2,w-1);
+    function sel(id,v){return '<select id="'+id+'" style="margin-bottom:8px">'+names.map(function(n,i){return '<option value="'+i+'"'+(i===v?" selected":"")+'>'+esc(n)+'</option>'}).join("")+'</select>'}
+    $("exmap").innerHTML='<div class="meta" style="margin-bottom:6px">File: '+esc(fname)+' · '+rows.length+' rows. Check which column is which:</div>'
+      +'<label class="wide">Location column'+sel("exL",il)+'</label><label class="wide">Product column'+sel("exP",ip)+'</label><label class="wide">Expiry date column'+sel("exE",ie)+'</label>'
+      +'<div id="exPv" class="meta" style="margin-bottom:8px"></div><div class="row"><button id="exGo" type="button">Import</button></div>';
+    var body=hasHead?rows.slice(1):rows;
+    function build(){
+      var a=+$("exL").value,b=+$("exP").value,c=+$("exE").value,out=[],bad=0;
+      body.forEach(function(r){
+        var l=String(r[a]===undefined?"":r[a]).trim(),p=String(r[b]===undefined?"":r[b]).trim(),e=toISO(r[c]);
+        if(!l&&!p&&(r[c]===undefined||r[c]===""))return;
+        if(!e||!p&&!l){bad++;return}
+        out.push({l:l,p:p,e:e});
+      });
+      PEND={rows:out,bad:bad,file:fname};
+      var s=out.slice(0,3).map(function(x){return esc(x.p)+" · "+esc(x.l)+" · "+show(x.e)}).join("<br>");
+      $("exPv").innerHTML='<b>'+out.length+'</b> products ready'+(bad?' · <span style="color:var(--bad)">'+bad+' rows skipped (no valid date)</span>':"")+(s?'<br>Example:<br>'+s:"");
+      $("exGo").textContent="Import "+out.length+" products";$("exGo").disabled=!out.length;
+    }
+    ["exL","exP","exE"].forEach(function(id){$(id).onchange=build});build();
+    $("exGo").onclick=function(){doImport()};
+  }
+  function doImport(){
+    if(!PEND||!PEND.rows.length)return;
+    if(ROWS.length&&!confirm("This replaces the current list of "+ROWS.length+" products with "+PEND.rows.length+" new ones. Continue?"))return;
+    var u=firebase.auth().currentUser,rows=PEND.rows,n=Math.ceil(rows.length/CH),b=DB.batch(),i,old=Math.max(META.n||0,0);
+    for(i=0;i<n;i++)b.set(DB.doc("app/exp_"+i),{rows:rows.slice(i*CH,(i+1)*CH)});
+    for(i=n;i<old+1;i++)b.delete(DB.doc("app/exp_"+i));
+    b.set(DB.doc("app/expmeta"),{n:n,count:rows.length,at:Date.now(),by:u?u.email:"",file:PEND.file});
+    $("exGo").disabled=true;$("exGo").textContent="Saving...";
+    b.commit().then(function(){
+      try{lg("Expiry list imported",rows.length+" products from "+PEND.file)}catch(e){}
+      $("exmap").innerHTML='<div class="meta" style="color:var(--ok);font-weight:700">Imported '+rows.length+' products.</div>';$("exf").value="";PEND=null;$("exi").open=false;
+    }).catch(function(e){$("exGo").disabled=false;$("exGo").textContent="Import";dbe(e)});
+  }
+  $("exclr").onclick=function(){
+    if(!ROWS.length)return;
+    if(!confirm("Delete the whole expiry list ("+ROWS.length+" products)?"))return;
+    if(!confirm("Are you sure? This cannot be undone."))return;
+    var b=DB.batch(),i,old=Math.max(META.n||0,Math.ceil(ROWS.length/CH));
+    for(i=0;i<old+1;i++)b.delete(DB.doc("app/exp_"+i));
+    b.delete(DB.doc("app/expmeta"));
+    b.commit().catch(dbe);
+  };
+  sync();
+})();
 </script>
 </body>
 </html>
