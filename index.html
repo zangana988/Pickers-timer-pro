@@ -1501,7 +1501,7 @@ PLATFORM="zanganam88@gmail.com";
 (function(){
   var LG=(document.querySelector('link[rel="icon"]')||{}).href||"";
   var ap=$("ap"),page="menu",ROWS=[],BRK=[],loaded=false,alerted=false,flt="all",q="",lim=300,sub=false,MEXP={n:0},MBRK={n:0},PEND=null;
-  var tab="stock",bp=90,bq="",blim=200,cnt=0;
+  var tab="stock",bp=90,bq="",bs="all",blim=200,cnt=0;
   var RED="#c9261b",ORG="#e07b00",YEL="#b8960a",GRN="#168a3e",CH=1500;
   var WHY=["Expired","Close to expiry","Damaged","Other"];
   function badge(s){return LG?'<img src="'+LG+'" width="'+s+'" height="'+s+'" alt="" style="border-radius:20%;vertical-align:middle;flex:none">':""}
@@ -1511,6 +1511,9 @@ PLATFORM="zanganam88@gmail.com";
   function bx(r){return typeof r.n==="number"?r.n+" box"+(r.n===1?"":"es"):""}
   function det(r){var a=[];if(r.a)a.push("Art. "+esc(r.a));var b=bx(r);if(b)a.push(b);a.push("Location: "+esc(r.l||"-"));return a.join(" · ")}
   function pn(v){var x=parseFloat(String(v).replace(",","."));return isNaN(x)||x<0?null:Math.round(x)}
+  function todayISO(){var t=today0();return iso(t.getFullYear(),t.getMonth()+1,t.getDate())}
+  function ddOf(r){if(r.dd)return r.dd;var d=new Date(r.at||0);return iso(d.getFullYear(),d.getMonth()+1,d.getDate())}
+  function unck(){return BRK.filter(function(r){return !r.ck}).length}
   function nm(e){try{return who(e)}catch(x){return e||""}}
   var FULL="position:fixed;top:0;right:0;bottom:0;left:0;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px))";
 
@@ -1544,8 +1547,8 @@ PLATFORM="zanganam88@gmail.com";
     +'<div class="row" style="margin-top:14px"><button id="exclr" type="button" class="ghost">Clear the whole stock list</button></div></div></details></div>'
     +'<div id="exV2" hidden>'
     +'<div id="exBs" class="meta"></div>'
-    +'<div id="exBp" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0"></div>'
-    +'<div class="row" style="margin:0 0 10px"><button id="exBx" type="button" class="ghost">Export Excel</button></div>'
+    +'<div id="exBa"></div><div id="exBp" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 8px"></div><div id="exBf" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px"></div>'
+    +'<div class="row" style="margin:0 0 10px"><button id="exBadd" type="button">+ Add damaged boxes</button><button id="exBx" type="button" class="ghost">Export Excel</button></div>'
     +'<input id="exBq" placeholder="Search article, product, location or reason" autocomplete="off" style="margin-bottom:10px">'
     +'<div id="exBl"></div></div>'
     +'<datalist id="exLd"></datalist><datalist id="exPd"></datalist><datalist id="exAd"></datalist></div>';
@@ -1606,9 +1609,10 @@ PLATFORM="zanganam88@gmail.com";
   }
   function drawHub(){
     var n=counts(),e=$("hes");
-    if(!ROWS.length){e.textContent=loaded?"No products yet. Tap to add them.":"";e.style.color="";return}
-    e.textContent=(n.exp?n.exp+" expired · ":"")+n.w1+" within 1 month";
-    e.style.color=(n.exp||n.w1)?"#ffb4ab":"";
+    if(!ROWS.length){e.textContent=loaded?(unck()?unck()+" damaged to confirm":"No products yet. Tap to add them."):"";e.style.color=unck()?"#ffb4ab":"";return}
+    var u=unck();
+    e.textContent=(n.exp?n.exp+" expired · ":"")+n.w1+" within 1 month"+(u?" · "+u+" damaged to confirm":"");
+    e.style.color=(n.exp||n.w1||u)?"#ffb4ab":"";
   }
   function btnStyle(on){return on?"":"background:transparent;color:var(--ink);border:2px solid var(--line)"}
 
@@ -1661,7 +1665,7 @@ PLATFORM="zanganam88@gmail.com";
   // ---------- drawing ----------
   function draw(){
     var nb=BRK.length;
-    $("exTabs").innerHTML='<button type="button" data-t="stock" style="'+btnStyle(tab==="stock")+'">Stock list ('+ROWS.length+')</button><button type="button" data-t="brk" style="'+btnStyle(tab==="brk")+'">Broken list ('+nb+')</button>';
+    $("exTabs").innerHTML='<button type="button" data-t="stock" style="'+btnStyle(tab==="stock")+'">Stock list ('+ROWS.length+')</button><button type="button" data-t="brk" style="'+btnStyle(tab==="brk")+'">Broken list ('+nb+')'+(unck()?'<div style="font-size:12px;font-weight:700;color:'+(tab==="brk"?"#ffb4ab":RED)+'">'+unck()+' to confirm</div>':"")+'</button>';
     Array.prototype.forEach.call($("exTabs").querySelectorAll("button"),function(b){b.onclick=function(){tab=b.dataset.t;draw()}});
     $("exV1").hidden=tab!=="stock";$("exV2").hidden=tab!=="brk";
     var lo={},po={},ao={};ROWS.concat(BRK).forEach(function(r){if(r.l)lo[r.l]=1;if(r.p)po[r.p]=1;if(r.a)ao[r.a]=1});
@@ -1714,27 +1718,51 @@ PLATFORM="zanganam88@gmail.com";
   $("exBq").oninput=function(){bq=this.value;blim=200;draw()};
 
   function brkList(){
-    var ql=bq.trim().toLowerCase(),cut=bp?Date.now()-bp*864e5:0;
-    return BRK.filter(function(r){return r.at>=cut&&(!ql||(r.p+" "+r.l+" "+(r.a||"")+" "+r.why).toLowerCase().indexOf(ql)>=0)}).sort(function(a,b){return b.at-a.at});
+    var ql=bq.trim().toLowerCase(),cut="";
+    if(bp){var c=new Date(Date.now()-bp*864e5);cut=iso(c.getFullYear(),c.getMonth()+1,c.getDate())}
+    return BRK.filter(function(r){return (!bp||ddOf(r)>=cut)&&(bs!=="open"||!r.ck)&&(!ql||(r.p+" "+r.l+" "+(r.a||"")+" "+r.why+" "+(r.nt||"")).toLowerCase().indexOf(ql)>=0)}).sort(function(a,b){var x=ddOf(a),y=ddOf(b);return x<y?1:x>y?-1:b.at-a.at});
   }
   function drawBrk(){
-    $("exBs").textContent=BRK.length?"Products you took out of the stock list.":"Nothing in the Broken list yet. Take products out from the Stock list and they appear here.";
+    var u=unck();
+    $("exBs").textContent=BRK.length?"Products taken out or damaged. The manager ticks each record to confirm he saw the items.":"Nothing in the Broken list yet. Take products out from the Stock list, or add damaged boxes here.";
+    $("exBa").innerHTML=u?'<div style="background:var(--badbg);border:1px solid '+RED+';border-radius:12px;padding:12px;margin-top:10px"><div style="font-weight:800;color:'+RED+'">'+u+' record'+(u===1?"":"s")+' waiting for your confirmation</div><div class="row" style="margin:8px 0 0"><button id="exBc" type="button">Confirm all shown</button></div></div>':"";
+    var ca=$("exBc");if(ca)ca.onclick=function(){confirmMany(brkList().filter(function(r){return !r.ck}))};
     var P=[[30,"30 days"],[90,"3 months"],[180,"6 months"],[0,"All"]];
     $("exBp").innerHTML=P.map(function(p){return '<button type="button" data-p="'+p[0]+'" style="padding:10px 4px;font-size:14px;'+btnStyle(p[0]===bp)+'">'+p[1]+'</button>'}).join("");
     Array.prototype.forEach.call($("exBp").querySelectorAll("button"),function(b){b.onclick=function(){bp=+b.dataset.p;blim=200;draw()}});
+    $("exBf").innerHTML=[["all","All records"],["open","Not confirmed ("+u+")"]].map(function(f){return '<button type="button" data-s="'+f[0]+'" style="padding:8px 4px;font-size:14px;'+btnStyle(f[0]===bs)+'">'+f[1]+'</button>'}).join("");
+    Array.prototype.forEach.call($("exBf").querySelectorAll("button"),function(b){b.onclick=function(){bs=b.dataset.s;blim=200;draw()}});
     var list=brkList();
     var h=list.slice(0,blim).map(function(r){
-      return '<div style="border-left:6px solid '+RED+';background:var(--card);border-radius:10px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,.10)">'
+      var col=r.ck?GRN:RED;
+      return '<div style="border-left:6px solid '+col+';background:var(--card);border-radius:10px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,.10)">'
         +'<div style="display:flex;justify-content:space-between;gap:10px"><div style="font-weight:700;overflow-wrap:anywhere">'+esc(r.p||"(no name)")+'</div><div style="font-weight:800;color:'+RED+';white-space:nowrap">'+esc(r.why||"")+'</div></div>'
-        +'<div class="meta">'+det(r)+' · Expiry: '+show(r.e)+'</div>'
-        +'<div class="meta">Taken out '+showT(r.at)+' by '+esc(nm(r.by))+'</div>'
-        +'<div class="row" style="margin:8px 0 0"><button type="button" class="ghost" data-id="'+esc(r.i)+'" style="padding:6px 12px;font-size:14px">Put back in stock list</button></div></div>';
+        +'<div class="meta">'+det(r)+(r.e?' · Expiry: '+show(r.e):'')+'</div>'
+        +'<div class="meta" style="color:var(--ink);font-weight:600">Date of damage: '+show(ddOf(r))+'</div>'
+        +(r.nt?'<div class="meta" style="color:var(--ink)">Note: '+esc(r.nt)+'</div>':"")
+        +'<div class="meta">Recorded '+showT(r.at)+' by '+esc(nm(r.by))+'</div>'
+        +(r.ck?'<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--okbg);color:var(--ok);font-weight:700">&#10003; Seen by '+esc(nm(r.ck))+' · '+showT(r.ckAt)+'</div>'
+          :'<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--badbg);display:flex;align-items:center;gap:10px"><input type="checkbox" id="ck_'+esc(r.i)+'" data-ck="'+esc(r.i)+'" style="width:26px;height:26px;flex:none"><label for="ck_'+esc(r.i)+'" style="margin:0;font-weight:700">I saw these items</label></div>')
+        +'<div class="row" style="margin:8px 0 0">'+(r.ck?'<button type="button" class="ghost" data-un="'+esc(r.i)+'" style="padding:6px 12px;font-size:14px">Undo confirmation</button>':'')+'<button type="button" class="ghost" data-id="'+esc(r.i)+'" style="padding:6px 12px;font-size:14px">Put back in stock list</button></div></div>';
     }).join("");
-    if(!list.length)h='<div class="empty">Nothing to show for this period.</div>';
+    if(!list.length)h='<div class="empty">Nothing to show for this filter.</div>';
     if(list.length>blim)h+='<div class="row"><button id="exBmore" type="button" class="ghost">Show more ('+(list.length-blim)+' left)</button></div>';
     $("exBl").innerHTML='<div class="meta" style="margin-bottom:8px">'+list.length+' record'+(list.length===1?"":"s")+'</div>'+h;
     Array.prototype.forEach.call($("exBl").querySelectorAll("button[data-id]"),function(b){b.onclick=function(){restore(b.dataset.id)}});
+    Array.prototype.forEach.call($("exBl").querySelectorAll("input[data-ck]"),function(c){c.onchange=function(){var r=byId(BRK,c.dataset.ck);if(c.checked&&r)confirmMany([r]);else c.checked=false}});
+    Array.prototype.forEach.call($("exBl").querySelectorAll("button[data-un]"),function(b){b.onclick=function(){undoConfirm(b.dataset.un)}});
     var mo=$("exBmore");if(mo)mo.onclick=function(){blim+=200;draw()};
+  }
+  function confirmMany(list){
+    if(!list.length)return;
+    var tot=0;list.forEach(function(r){if(typeof r.n==="number")tot+=r.n});
+    if(!confirm("Confirm that you saw "+(list.length===1?"these items ("+list[0].p+(typeof list[0].n==="number"?", "+list[0].n+" boxes":"")+")":list.length+" records"+(tot?" ("+tot+" boxes)":""))+"?")){draw();return}
+    var ids={};list.forEach(function(r){ids[r.i]=1});var now=Date.now(),by=me();
+    commit(null,BRK.map(function(r){if(!ids[r.i])return r;var x=Object.assign({},r);x.ck=by;x.ckAt=now;return x}),"Broken items confirmed as seen",list.length+" record"+(list.length===1?"":"s"));
+  }
+  function undoConfirm(id){
+    if(!confirm("Remove the confirmation from this record?"))return;
+    commit(null,BRK.map(function(r){if(r.i!==id)return r;var x=Object.assign({},r);delete x.ck;delete x.ckAt;return x}),"Broken item confirmation removed","");
   }
 
   // ---------- actions ----------
@@ -1776,7 +1804,7 @@ PLATFORM="zanganam88@gmail.com";
     if(focus==="rep")setTimeout(function(){try{$("sxd").focus()}catch(e){}},50);
   }
   function takeOut(r,why,newE,qty,newQty){
-    var rec=mk({l:r.l,p:r.p,a:r.a,n:qty,e:r.e});rec.at=Date.now();rec.by=me();rec.why=why;
+    var rec=mk({l:r.l,p:r.p,a:r.a,n:qty,e:r.e});rec.at=Date.now();rec.by=me();rec.why=why;rec.dd=todayISO();
     var all=typeof r.n!=="number"||qty===null||qty>=r.n,rows=ROWS.filter(function(x){return x.i!==r.i});
     if(!all)rows.push(mk({i:r.i,l:r.l,p:r.p,a:r.a,n:r.n-qty,e:r.e}));
     if(newE)rows.push(mk({i:all?r.i:uid(),l:r.l,p:r.p,a:r.a,n:newQty,e:newE}));
@@ -1789,7 +1817,7 @@ PLATFORM="zanganam88@gmail.com";
     if(!out.length)return;
     if(!confirm("Move all "+out.length+" expired products to the Broken list?"))return;
     var now=Date.now(),by=me();
-    commit(keep,BRK.concat(out.map(function(r){var x=mk(r);x.i=uid();x.at=now;x.by=by;x.why="Expired";return x})),"Expired products moved to broken list",out.length+" products");
+    commit(keep,BRK.concat(out.map(function(r){var x=mk(r);x.i=uid();x.at=now;x.by=by;x.why="Expired";x.dd=todayISO();return x})),"Expired products moved to broken list",out.length+" products");
   }
   function restore(id){
     var r=byId(BRK,id);if(!r)return;
@@ -1798,7 +1826,7 @@ PLATFORM="zanganam88@gmail.com";
   }
   function formSheet(title,r,onSave,again){
     sheet('<h2 style="margin:0 0 10px">'+title+'</h2>'
-      +'<label class="wide">Article number<input id="sfr" list="exAd" autocomplete="off" value="'+esc(r.a||"")+'" placeholder="Article no."></label>'
+      +'<div class="wide meta" style="margin-top:2px">Article number</div><div style="display:flex;gap:8px"><input id="sfr" list="exAd" autocomplete="off" value="'+esc(r.a||"")+'" placeholder="Article no. or scan" style="flex:1"><button id="sfScan" type="button" class="ghost" style="width:auto;padding:8px 14px">Scan</button></div>'
       +'<label class="wide" style="margin-top:8px">Location<input id="sfl" list="exLd" autocomplete="off" value="'+esc(r.l||"")+'" placeholder="e.g. A-12"></label>'
       +'<label class="wide" style="margin-top:8px">Product<input id="sfp" list="exPd" autocomplete="off" value="'+esc(r.p||"")+'" placeholder="Product name"></label>'
       +'<label class="wide" style="margin-top:8px">Number of boxes<input id="sfq" type="number" min="0" inputmode="numeric" value="'+(typeof r.n==="number"?r.n:"")+'"></label>'
@@ -1806,6 +1834,7 @@ PLATFORM="zanganam88@gmail.com";
       +'<div class="row" style="margin-top:14px"><button id="sfs" type="button">Save</button>'+(again?'<button id="sfa" type="button" class="ghost">Save and add another</button>':"")+'<button id="sfc" type="button" class="ghost">Cancel</button></div>');
     function read(){var l=$("sfl").value.trim(),p=$("sfp").value.trim(),e=$("sfd").value;if(!p||!e){alert("Enter the product and the expiry date.");return null}return {l:l,p:p,e:e,a:$("sfr").value.trim(),n:pn($("sfq").value)}}
     $("sfc").onclick=closeSheet;
+    $("sfScan").onclick=function(){scan(function(c){$("sfr").value=c;$("sfr").onchange()})};
     $("sfp").onchange=function(){if(!$("sfr").value){for(var i=0;i<ROWS.length;i++)if(ROWS[i].a&&ROWS[i].p.toLowerCase()===this.value.trim().toLowerCase()){$("sfr").value=ROWS[i].a;break}}if(!$("sfd").value){var s=suggest(this.value);if(s)$("sfd").value=s}};
     $("sfr").onchange=function(){if(!$("sfp").value){for(var i=0;i<ROWS.length;i++)if(ROWS[i].a&&ROWS[i].a.toLowerCase()===this.value.trim().toLowerCase()){$("sfp").value=ROWS[i].p;break}}};
     $("sfs").onclick=function(){var v=read();if(v){closeSheet();onSave(v)}};
@@ -1822,6 +1851,101 @@ PLATFORM="zanganam88@gmail.com";
     },false);
   }
   $("exAdd").onclick=function(){addSheet("")};
+
+
+  // ---------- barcode scanner (camera) ----------
+  var ZX=null;
+  function loadZX(){
+    if(window.ZXing)return Promise.resolve();
+    if(ZX)return ZX;
+    ZX=new Promise(function(ok,no){var s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js";s.onload=ok;s.onerror=function(){ZX=null;no(new Error("Could not load the scanner. Check your internet connection."))};document.head.appendChild(s)});
+    return ZX;
+  }
+  function scan(done){
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){alert("This browser cannot use the camera here. Type the number instead.");return}
+    var ov=document.createElement("div");
+    ov.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:99;background:#000;display:flex;flex-direction:column";
+    ov.innerHTML='<video id="exVid" playsinline muted autoplay style="flex:1;min-height:0;width:100%;object-fit:cover"></video>'
+      +'<div style="position:absolute;left:12%;right:12%;top:40%;height:20%;border:3px solid #38bdf8;border-radius:12px;box-shadow:0 0 0 999px rgba(0,0,0,.35)"></div>'
+      +'<div id="exScMsg" style="position:absolute;left:0;right:0;top:calc(14px + env(safe-area-inset-top,0px));text-align:center;color:#fff;font-weight:600">Point the camera at the barcode</div>'
+      +'<div style="padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));display:flex"><button id="exScX" type="button" class="ghost" style="width:100%">Cancel</button></div>';
+    document.body.appendChild(ov);
+    var stream=null,reader=null,timer=null,over=false;
+    function stop(){over=true;clearInterval(timer);try{if(reader)reader.reset()}catch(e){}try{if(stream)stream.getTracks().forEach(function(t){t.stop()})}catch(e){}ov.remove()}
+    function found(c){if(over)return;stop();try{if(navigator.vibrate)navigator.vibrate(80)}catch(e){}done(String(c).trim())}
+    function msg(t){var m=$("exScMsg");if(m)m.textContent=t}
+    $("exScX").onclick=stop;
+    var vid=$("exVid");
+    if(window.BarcodeDetector){
+      var det=new BarcodeDetector();
+      navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false}).then(function(st){
+        if(over){st.getTracks().forEach(function(t){t.stop()});return}
+        stream=st;vid.srcObject=st;vid.play().catch(function(){});
+        timer=setInterval(function(){det.detect(vid).then(function(r){if(r&&r.length&&r[0].rawValue)found(r[0].rawValue)}).catch(function(){})},250);
+      }).catch(function(e){stop();alert("Camera not allowed. In Settings > Safari > Camera, allow this site, then try again.")});
+    }else{
+      loadZX().then(function(){
+        if(over)return;
+        reader=new ZXing.BrowserMultiFormatReader();
+        return reader.decodeFromConstraints({video:{facingMode:{ideal:"environment"}},audio:false},vid,function(res){if(res)found(res.getText())});
+      }).catch(function(e){if(over)return;stop();alert((e&&e.message&&/scanner/.test(e.message))?e.message:"Camera not allowed. In Settings > Safari > Camera, allow this site, then try again.")});
+    }
+  }
+
+  // ---------- add damaged boxes by hand (Broken list) ----------
+  function damageSheet(pre){
+    pre=pre||{};
+    sheet('<h2 style="margin:0 0 4px">Add damaged boxes</h2><div class="meta" style="margin-bottom:8px">Type or scan the article number. The product, location and expiry are filled in from the stock list.</div>'
+      +'<div class="wide meta">Article number</div><div style="display:flex;gap:8px"><input id="sdr" list="exAd" autocomplete="off" placeholder="Article no. or scan" style="flex:1" value="'+esc(pre.a||"")+'"><button id="sdScan" type="button" style="width:auto;padding:8px 14px">Scan</button></div>'
+      +'<div id="sdb" style="margin-top:8px"></div>'
+      +'<label class="wide" style="margin-top:8px">Product<input id="sdp" list="exPd" autocomplete="off" placeholder="Product name"></label>'
+      +'<label class="wide" style="margin-top:8px">Location<input id="sdl" list="exLd" autocomplete="off"></label>'
+      +'<label class="wide" style="margin-top:8px">Date of damage<input id="sdd" type="date" value="'+todayISO()+'" max="'+todayISO()+'"></label>'
+      +'<label class="wide" style="margin-top:8px">Number of damaged boxes<input id="sdn" type="number" min="1" inputmode="numeric"></label>'
+      +'<label class="wide" style="margin-top:8px">Expiry date (if known)<input id="sde" type="date"></label>'
+      +'<label class="wide" style="margin-top:8px">Reason<select id="sdw">'+whyOpts("Damaged")+'</select></label>'
+      +'<label class="wide" style="margin-top:8px">Note (optional)<input id="sdt" autocomplete="off" placeholder="e.g. fell from pallet"></label>'
+      +'<div id="sdrm" style="margin-top:12px" hidden><div style="display:flex;align-items:center;gap:10px"><input id="sdx" type="checkbox" checked style="width:24px;height:24px;flex:none"><label for="sdx" style="margin:0">Also take these boxes out of the stock list</label></div></div>'
+      +'<div class="row" style="margin-top:14px"><button id="sds" type="button">Add to Broken list</button><button id="sdc" type="button" class="ghost">Cancel</button></div>');
+    var batch=null,cands=[],filled=false;
+    function pick(r){
+      batch=r;$("sdrm").hidden=!(r&&typeof r.n==="number");
+      if(!r&&filled){$("sdl").value="";$("sde").value="";filled=false}
+      if(r){filled=true;$("sdp").value=r.p;$("sdl").value=r.l;$("sde").value=r.e;if(r.a)$("sdr").value=r.a}
+    }
+    function lookup(){
+      var v=$("sdr").value.trim().toLowerCase(),box=$("sdb");
+      cands=!v?[]:ROWS.filter(function(r){return (r.a&&r.a.toLowerCase()===v)||(r.p&&r.p.toLowerCase()===v)}).sort(function(a,b){return a.e<b.e?-1:a.e>b.e?1:0});
+      if(!cands.length){if(filled){$("sdp").value="";$("sdl").value="";$("sde").value="";filled=false}batch=null;$("sdrm").hidden=true;box.innerHTML=v?'<div class="meta">Not found in the stock list. Fill in the fields by hand.</div>':"";
+        if(v){var h=BRK.concat(ROWS).filter(function(r){return r.a&&r.a.toLowerCase()===v})[0];if(h&&!$("sdp").value)$("sdp").value=h.p}
+        return}
+      box.innerHTML='<label class="wide">Which batch?<select id="sdsel">'+cands.map(function(r,i){return '<option value="'+i+'">'+esc(r.p)+' · '+esc(r.l||"-")+' · exp '+show(r.e)+(typeof r.n==="number"?' · '+r.n+' boxes':'')+'</option>'}).join("")+'<option value="-1">None of these (not in the stock list)</option></select></label>';
+      $("sdsel").onchange=function(){pick(+this.value>=0?cands[+this.value]:null)};
+      pick(cands[0]);
+    }
+    $("sdr").onchange=lookup;
+    $("sdp").onchange=function(){if(!$("sdr").value){var v=this.value.trim().toLowerCase(),m=ROWS.filter(function(r){return r.p&&r.p.toLowerCase()===v&&r.a})[0];if(m){$("sdr").value=m.a;lookup()}}};
+    $("sdScan").onclick=function(){scan(function(c){$("sdr").value=c;lookup();if(!cands.length)alert("Barcode "+c+" is not in the stock list. Fill in the product by hand.")})};
+    $("sdc").onclick=closeSheet;
+    $("sds").onclick=function(){
+      var p=$("sdp").value.trim(),n=pn($("sdn").value);
+      if(!p){alert("Enter the product.");return}
+      if(n===null||n<1){alert("Enter how many boxes are damaged.");return}
+      var e=$("sde").value,rows=null,dd=$("sdd").value;
+      if(!dd||dd>todayISO()){alert("Enter the date of damage (not in the future).");return}
+      if(batch&&typeof batch.n==="number"&&$("sdx").checked){
+        if(n>batch.n){alert("The stock list only has "+batch.n+" boxes of this batch.");return}
+        rows=ROWS.filter(function(x){return x.i!==batch.i});
+        if(n<batch.n)rows.push(mk({i:batch.i,l:batch.l,p:batch.p,a:batch.a,n:batch.n-n,e:batch.e}));
+      }
+      var rec=mk({l:$("sdl").value.trim(),p:p,a:$("sdr").value.trim(),n:n,e:e||""});rec.at=Date.now();rec.by=me();rec.why=$("sdw").value;rec.dd=dd;
+      var nt=$("sdt").value.trim();if(nt)rec.nt=nt;
+      closeSheet();
+      commit(rows,BRK.concat([rec]),"Damaged boxes added to broken list",p+(rec.a?" ("+rec.a+")":"")+" · "+n+" boxes · "+rec.why+" · damaged on "+dd+(rows?" · removed from stock":""));
+    };
+    if(pre.a)lookup();
+  }
+  $("exBadd").onclick=function(){damageSheet()};
 
   // ---------- Excel export (no library) ----------
   var CT=null;
@@ -1880,9 +2004,10 @@ PLATFORM="zanganam88@gmail.com";
   };
   $("exBx").onclick=function(){
     var list=brkList();
-    if(!list.length){alert("Nothing to export for this period.");return}
-    download(xlsx("Broken",["Taken out on","Article number","Product","Location","Boxes","Expiry date","Reason","Taken out by"],list.map(function(r){
-      var d=new Date(r.at);return [iso(d.getFullYear(),d.getMonth()+1,d.getDate()),r.a,r.p,r.l,typeof r.n==="number"?r.n:"",r.e,r.why,nm(r.by)]}),[0,5],[14,16,36,16,9,14,18,22]),"broken-list-"+dayStr(new Date())+".xlsx");
+    if(!list.length){alert("Nothing to export for this filter.");return}
+    download(xlsx("Broken",["Date of damage","Recorded on","Article number","Product","Location","Boxes","Expiry date","Reason","Note","Recorded by","Seen by manager","Seen on"],list.map(function(r){
+      var d=new Date(r.at),c=r.ckAt?new Date(r.ckAt):null;
+      return [ddOf(r),iso(d.getFullYear(),d.getMonth()+1,d.getDate()),r.a,r.p,r.l,typeof r.n==="number"?r.n:"",r.e,r.why,r.nt||"",nm(r.by),r.ck?nm(r.ck):"No",c?iso(c.getFullYear(),c.getMonth()+1,c.getDate()):""]}),[0,1,6,11],[14,14,16,36,16,9,14,18,30,22,22,14]),"broken-list-"+dayStr(new Date())+".xlsx");
   };
 
   // ---------- Excel / CSV reading (import) ----------
