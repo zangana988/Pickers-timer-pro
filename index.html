@@ -1583,6 +1583,7 @@ PLATFORM="zanganam88@gmail.com";
   function parseISO(s){var m=/^(\d{4})-(\d\d)-(\d\d)$/.exec(s);return m?new Date(+m[1],+m[2]-1,+m[3]):null}
   function p2(n){return (n<10?"0":"")+n}
   function iso(y,m,d){var t=new Date(y,m-1,d);if(t.getFullYear()!==y||t.getMonth()!==m-1||t.getDate()!==d)return "";return y+"-"+p2(m)+"-"+p2(d)}
+  var MONRX=/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i;
   var MON={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
   function toISO(v){
     if(v===null||v===undefined||v==="")return "";
@@ -1600,7 +1601,7 @@ PLATFORM="zanganam88@gmail.com";
     if((m=/^([A-Za-z]{3,})[-\/. ,]*(\d{1,2})[-\/. ,]+(\d{4})$/.exec(s))&&MON[m[1].slice(0,3).toLowerCase()])return iso(+m[3],MON[m[1].slice(0,3).toLowerCase()],+m[2]);
     if((m=/^([A-Za-z]{3,})[-\/. ,]*(\d{4}|\d{2})$/.exec(s))&&MON[m[1].slice(0,3).toLowerCase()]){var yy=+m[2]<100?2000+(+m[2]):+m[2],mo=MON[m[1].slice(0,3).toLowerCase()];return iso(yy,mo,new Date(yy,mo,0).getDate())}
     if((m=/^(\d{1,2})[-\/.](\d{4})$/.exec(s))){var mo2=+m[1],y2=+m[2];if(mo2<1||mo2>12)return "";return iso(y2,mo2,new Date(y2,mo2,0).getDate())}
-    var p=Date.parse(s);if(!isNaN(p)){var d=new Date(p);return iso(d.getFullYear(),d.getMonth()+1,d.getDate())}
+    var p=(/\d{4}/.test(s)||MONRX.test(s))&&/\d/.test(s)?Date.parse(s):NaN;if(!isNaN(p)){var d=new Date(p);return iso(d.getFullYear(),d.getMonth()+1,d.getDate())}
     return "";
   }
   function show(s){var d=parseISO(s);return d?p2(d.getDate())+"/"+p2(d.getMonth()+1)+"/"+d.getFullYear():s}
@@ -2132,19 +2133,49 @@ PLATFORM="zanganam88@gmail.com";
       if(!all.length){$("exmap").innerHTML='<div class="meta" style="color:var(--bad)">This sheet is empty.</div>';return}
       var rows=all.map(function(x){return x.r});
       var w=0;rows.forEach(function(r){if(r.length>w)w=r.length});
-      var head=rows[0],hasHead=head.some(function(c){return typeof c==="string"&&c.trim()!==""&&!toISO(c)})&&!head.some(function(c){return toISO(c)});
-      var names=[];for(var i=0;i<w;i++)names.push(hasHead&&String(head[i]||"").trim()?String(head[i]).trim():"Column "+letter(i));
-      function find(re,skip){for(var i=0;i<w;i++)if(skip.indexOf(i)<0&&hasHead&&re.test(String(head[i]||"")))return i;return -1}
-      var ie=find(/exp|best|valid|use by|until|date/i,[]),il=find(/loc|shelf|place|bay|aisle|rack|position|zone/i,[ie]),ia=find(/art|sku|code|ean|barcode|item\s*(no|nr|#)/i,[ie,il]),iq=find(/box|qty|quant|carton|pcs|units|amount/i,[ie,il,ia]),ip=find(/prod|item|name|desc|material/i,[ie,il,ia,iq]);
-      var free=[0,1,2,3,4,5].filter(function(x){return x<w&&x!==ie&&x!==il&&x!==ip&&x!==ia&&x!==iq});
-      if(il<0)il=free.shift();if(ip<0)ip=free.shift();if(ie<0)ie=free.shift();
-      if(il===undefined)il=0;if(ip===undefined)ip=Math.min(1,w-1);if(ie===undefined)ie=Math.min(2,w-1);
+      var RX={
+        e:/exp|best|valid|use by|until|datum|date|tht|houdbaar|vervaldat|ablauf|mhd|haltbar|verfall|p[ée]remption|dlc|dluo|ddm|انتهاء|صلاحية|تاريخ/i,
+        l:/loc|shelf|place|bay|aisle|rack|position|zone|plek|plaats|stelling|positie|gang|vak|lager|regal|fach|stellplatz|emplacement|rayon|all[ée]e|موقع|مكان|رف/i,
+        q:/box|qty|quant|carton|pcs|units|amount|aantal|doos|dozen|stuks|colli|menge|anzahl|karton|st[üu]ck|quantit|nombre|caisse|كمية|عدد|صندوق|كرتون/i,
+        a:/code|nummer|number|\bnr\b|\bnr\.|\bno\b|ean|sku|gtin|upc|barcode|barkod|referen|\bref\b|^art\.?$|^article$|^artikel$|رقم|كود|باركود|رمز/i,
+        p:/prod|item|name|naam|desc|omschrij|benaming|bezeichnung|beschreibung|material|artikel|article|d[ée]signation|libell|nom\b|اسم|منتج|وصف|بيان/i};
+      var ORDER=["e","l","q","a","p"];
+      function klass(c){if(typeof c!=="string")return "";var t=c.trim();if(!t||toISO(t))return "";for(var i=0;i<ORDER.length;i++)if(RX[ORDER[i]].test(t))return ORDER[i];return ""}
+      var hi=-1,best=1;
+      for(var ri=0;ri<Math.min(15,rows.length);ri++){var seen={};rows[ri].forEach(function(c){var k=klass(c);if(k)seen[k]=1});var sc=Object.keys(seen).length;if(sc>best){best=sc;hi=ri}}
+      if(hi<0&&rows[0].some(function(c){return typeof c==="string"&&c.trim()!==""&&!toISO(c)})&&!rows[0].some(function(c){return toISO(c)}))hi=0;
+      var head=hi>=0?rows[hi]:[],names=[];
+      for(var i=0;i<w;i++)names.push(hi>=0&&String(head[i]||"").trim()?String(head[i]).trim():"Column "+letter(i));
+      var body=all.slice(hi+1),F={e:-1,l:-1,q:-1,a:-1,p:-1},byTitle={};
+      if(hi>=0)head.forEach(function(c,i){var k=klass(c);if(k&&F[k]<0){F[k]=i;byTitle[k]=1}});
+      var used=function(){var u={};ORDER.forEach(function(k){if(F[k]>=0)u[F[k]]=1});return u};
+      var sample=body.slice(0,300);
+      function st(c){
+        var vals=sample.map(function(x){return x.r[c]}).filter(function(v){return v!==undefined&&String(v).trim()!==""});
+        var n=vals.length||1,d=0,nu=0,co=0,len=0,dg=0;
+        vals.forEach(function(v){var s=String(v).trim();len+=s.length;if(toISO(v))d++;if(typeof v==="number"||/^\d+([.,]\d+)?$/.test(s))nu++;if(/^[A-Za-z0-9._\-\/]{3,20}$/.test(s)){co++;if(/\d/.test(s))dg++}});
+        return {d:d/n,nu:nu/n,co:co/n,dg:dg/n,len:len/n,n:vals.length};
+      }
+      var S=[];for(var c=0;c<w;c++)S.push(st(c));
+      function pickBy(f,ok,key){var u=used(),bc=-1,bv=-1;for(var c=0;c<w;c++)if(!u[c]&&S[c].n&&ok(S[c])){var v=key?S[c][key]:0;if(bc<0||v>bv){bc=c;bv=v}}if(bc>=0)F[f]=bc}
+      if(F.e<0)pickBy("e",function(s){return s.d>=0.6},"d");
+      if(F.q<0)pickBy("q",function(s){return s.nu>=0.8&&s.d<0.3&&s.len<=5});
+      if(F.a<0)pickBy("a",function(s){return s.co>=0.8&&s.dg>=0.8&&s.len>=4},"len");
+      if(F.l<0)pickBy("l",function(s){return s.co>=0.6&&s.len<=10});
+      if(F.p<0){var u2=used(),bi=-1,bl=0;for(var c2=0;c2<w;c2++)if(!u2[c2]&&S[c2].n&&S[c2].len>bl&&S[c2].d<0.3){bl=S[c2].len;bi=c2}if(bi>=0)F.p=bi}
+      var free=[];for(var c3=0;c3<w;c3++)if(!used()[c3])free.push(c3);
+      if(F.l<0&&free.length)F.l=free.shift();if(F.p<0&&free.length)F.p=free.shift();if(F.e<0&&free.length)F.e=free.shift();
+      var il=F.l<0?0:F.l,ia=F.a,iq=F.q,ip=F.p<0?Math.min(1,w-1):F.p,ie=F.e<0?Math.min(2,w-1):F.e;
+      var LBL={l:"Location",a:"Article number",p:"Product",q:"Boxes",e:"Expiry date"};
+      var note=ORDER.filter(function(k){return byTitle[k]}).map(function(k){return LBL[k]+" = "+esc(names[F[k]])}).join(", ");
       function sel(id,v,opt){return '<select id="'+id+'" style="margin-bottom:8px">'+(opt?'<option value="-1"'+(v<0?" selected":"")+'>(none)</option>':"")+names.map(function(n,i){return '<option value="'+i+'"'+(i===v?" selected":"")+'>'+esc(n)+'</option>'}).join("")+'</select>'}
-      $("exmap").innerHTML='<div class="meta" style="margin-bottom:6px">File: '+esc(fname)+' · '+rows.length+' rows. Check which column is which:</div>'
+      $("exmap").innerHTML='<div class="meta" style="margin-bottom:6px">File: '+esc(fname)+' · '+body.length+' rows'+(hi>0?' (titles found on line '+all[hi].n+')':'')+'.</div>'
+        +(note?'<div class="meta" style="margin-bottom:8px;color:var(--ok);font-weight:600">Matched from your column titles: '+note+'</div>':'<div class="meta" style="margin-bottom:8px">Column titles not recognised, so columns were guessed from the cells.</div>')
+        +'<div class="meta" style="margin-bottom:6px">Check which column is which:</div>'
         +(sheets.length>1?'<label class="wide">Sheet<select id="exSh" style="margin-bottom:8px">'+sheets.map(function(s,i){return '<option value="'+i+'"'+(i===cur?" selected":"")+'>'+esc(s.name)+' ('+s.rows.length+' rows)</option>'}).join("")+'</select></label>':"")
         +'<label class="wide">Location column'+sel("exL",il)+'</label><label class="wide">Article number column'+sel("exA",ia,1)+'</label><label class="wide">Product column'+sel("exP",ip)+'</label><label class="wide">Number of boxes column'+sel("exQ",iq,1)+'</label><label class="wide">Expiry date column'+sel("exE",ie)+'</label>'
         +'<div id="exPv" class="meta" style="margin-bottom:8px"></div><div class="row"><button id="exAddI" type="button">Add to current list</button><button id="exRepI" type="button" class="ghost">Replace the list</button></div>';
-      var body=hasHead?all.slice(1):all;
+      
       function build(){
         var a=+$("exL").value,b=+$("exP").value,c=+$("exE").value,ca=+$("exA").value,cq=+$("exQ").value,out=[],bad=[];
         body.forEach(function(x){
