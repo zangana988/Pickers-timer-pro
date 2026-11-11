@@ -1857,8 +1857,8 @@ PLATFORM="zanganam88@gmail.com";
     $("sfs").onclick=function(){var v=read();if(v){closeSheet();onSave(v)}};
     if(again)$("sfa").onclick=function(){var v=read();if(v){onSave(v);addSheet(v.l)}};
   }
-  function addSheet(loc){
-    formSheet("Add product",{l:loc||""},function(v){
+  function addSheet(loc,pre){
+    formSheet("Add product",Object.assign({l:loc||""},pre||{}),function(v){
       commit(ROWS.concat([mk(v)]),null,"Product added",v.p+(v.a?" ("+v.a+")":"")+" · "+v.l+" · "+v.e);
     },true);
   }
@@ -2221,23 +2221,23 @@ PLATFORM="zanganam88@gmail.com";
     b.commit().then(function(){try{lg("Stock list cleared",cnt0+" products")}catch(e){}msg("The stock list was cleared ("+cnt0+" products removed).",false);$("exi").open=false}).catch(function(e){msg("Could not clear the list: "+((e&&e.message)||e)+" "+(/permission/i.test(String((e&&e.message)||e))?" Your security rules do not allow deleting here. Send me this message.":""),true)});
   };
   // ---------- Warehouse Map ----------
-  var MAP=[],MMAP={n:0},LOCS=[],wv="lines",hl="",wq="",wlim=300,flL="",WP=null,wm=document.createElement("div");
+  var MAP=[],MMAP={n:0},LOCS=[],LIDX={},BYA={},BYK={},wv="lines",hl="",wq="",wlim=300,flL="",WP=null,wm=document.createElement("div");
   wm.hidden=true;wm.style.cssText=FULL+";z-index:47";
   wm.innerHTML='<div style="max-width:720px;margin:0 auto">'
     +'<div class="row" style="margin:0 0 10px"><h1 style="margin:0;font-size:22px;display:flex;align-items:center;gap:8px">'+badge(28)+'<span>Warehouse Map</span></h1><button id="wmm" type="button" class="ghost">Menu</button></div>'
     +'<div id="wmMsg"></div>'
-    +'<div style="display:flex;gap:8px;margin-bottom:10px"><input id="wmq" placeholder="Search product, article, location or line" autocomplete="off" style="flex:1"><button id="wmScan" type="button" class="ghost" style="width:auto;padding:8px 14px">Scan</button></div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:10px"><input id="wmq" placeholder="Search item, SKU, description or location" autocomplete="off" style="flex:1"><button id="wmScan" type="button" class="ghost" style="width:auto;padding:8px 14px">Scan</button></div>'
     +'<div id="wmRes" hidden></div><div id="wmMain"></div>'
-    +'<details id="wmUp" style="margin-top:16px"><summary>Update the map (Excel, add or remove locations)</summary><div style="margin-top:10px">'
-    +'<div class="meta" style="margin-bottom:8px">Choose your Excel file with the location codes (like AA00100). The app finds every code in the sheet. Lines that appear in two columns are read as the two sides of the aisle.</div>'
+    +'<details id="wmUp" style="margin-top:16px"><summary>Update the map (Excel, add or change locations)</summary><div style="margin-top:10px">'
+    +'<div class="meta" style="margin-bottom:8px">Choose your Excel file. The app finds every location code (like AA00200) and the item in front of it: item code, SKU and description. Even bays are Row 1 and odd bays are Row 2, as in your sheet.</div>'
     +'<input id="wmf" type="file">'
     +'<div class="meta" style="margin:12px 0 6px">Or copy the cells in Excel and paste them here:</div><textarea id="wmPaste" rows="3" placeholder="Paste cells here" style="width:100%"></textarea><div class="row" style="margin-top:8px"><button id="wmPasteGo" type="button" class="ghost">Read pasted cells</button></div>'
     +'<div id="wmPv" style="margin-top:10px"></div>'
-    +'<div style="border-top:1px solid var(--line);margin-top:16px;padding-top:12px"><div style="font-weight:700;margin-bottom:6px">Add locations by hand</div>'
+    +'<div style="border-top:1px solid var(--line);margin-top:16px;padding-top:12px"><div style="font-weight:700;margin-bottom:6px">Add empty locations by hand</div>'
     +'<label class="wide">Line (letters, e.g. AC)<input id="wmaL" maxlength="4" autocomplete="off" style="text-transform:uppercase"></label>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><label class="wide">Bay from<input id="wmaB1" type="number" min="0" inputmode="numeric" placeholder="1"></label><label class="wide">Bay to<input id="wmaB2" type="number" min="0" inputmode="numeric" placeholder="40"></label>'
     +'<label class="wide">Level from<input id="wmaV1" type="number" min="0" inputmode="numeric" placeholder="0"></label><label class="wide">Level to<input id="wmaV2" type="number" min="0" inputmode="numeric" placeholder="3"></label></div>'
-    +'<label class="wide" style="margin-top:8px">Side<select id="wmaS"><option value="1">Side 1</option><option value="2">Side 2</option></select></label>'
+    +'<div class="meta" style="margin-top:6px">Even bays go to Row 1 and odd bays to Row 2.</div>'
     +'<div class="row" style="margin-top:10px"><button id="wmaGo" type="button">Add locations</button></div></div>'
     +'<div class="row" style="margin-top:16px"><button id="wmXa" type="button" class="ghost">Export whole map (Excel)</button><button id="wmClr" type="button" class="ghost">Clear the whole map</button></div></div></details></div>';
   document.body.appendChild(wm);
@@ -2246,21 +2246,37 @@ PLATFORM="zanganam88@gmail.com";
   function msgW(t,bad){var e=$("wmMsg");e.innerHTML=t?'<div style="padding:10px 12px;border-radius:10px;font-weight:600;margin-bottom:10px;background:'+(bad?"var(--badbg)":"var(--okbg)")+';color:'+(bad?RED:"var(--ok)")+'">'+esc(t)+'</div>':"";if(t)try{wm.scrollTop=0}catch(x){}}
 
   function nz(s){return String(s==null?"":s).toUpperCase().replace(/[^A-Z0-9]/g,"")}
+  function ni(s){var t=String(s==null?"":s).trim().toUpperCase().replace(/,/g,".").replace(/\s+/g,"");if(/^\d+\.\d+$/.test(t))t=t.replace(/0+$/,"").replace(/\.$/,"");return t}
   function pcode(code){var m=/^([A-Z]+)(\d+)$/.exec(code);if(!m)return null;var d=m[2],bay,lv;if(d.length>2){bay=d.slice(0,-2);lv=d.slice(-2)}else{bay=d;lv="00"}return {c:code,ln:m[1],bay:bay,lv:lv}}
+  function rowOf(bay){return (+bay%2===0)?1:2}
   function rebuildLocs(){
-    LOCS=[];MAP.forEach(function(s){var a=String(s).split("|"),p=pcode(a[0]);if(p){p.sd=+a[1]||1;LOCS.push(p)}});
-    LOCS.sort(function(a,b){return a.ln<b.ln?-1:a.ln>b.ln?1:((+a.bay)-(+b.bay))||((+a.lv)-(+b.lv))||(a.sd-b.sd)});
+    LOCS=[];LIDX={};BYA={};BYK={};
+    MAP.forEach(function(o){
+      if(typeof o==="string"){var a=o.split("|");o={c:a[0]}}
+      var p=pcode(o.c);if(!p)return;
+      p.sd=o.s||rowOf(p.bay);p.a=o.a||"";p.k=o.k||"";p.p=o.p||"";LOCS.push(p);
+    });
+    LOCS.sort(function(a,b){return a.ln<b.ln?-1:a.ln>b.ln?1:((+a.bay)-(+b.bay))||((+a.lv)-(+b.lv))});
+    LOCS.forEach(function(x){LIDX[x.c]=x;if(x.a)(BYA[ni(x.a)]=BYA[ni(x.a)]||[]).push(x);if(x.k)(BYK[ni(x.k)]=BYK[ni(x.k)]||[]).push(x)});
   }
-  function occMap(){var o={};ROWS.forEach(function(r){var k=nz(r.l);if(k)(o[k]=o[k]||[]).push(r)});return o}
-  function lstate(code,o,L){
-    var rs=o[code]||[];if(!rs.length)return {k:"free",c:GRN,rs:rs};
+  function hasItem(x){return !!(x.p||x.a||x.k)}
+  function effLoc(r){
+    var c=nz(r.l);if(LIDX[c])return c;
+    var m=(r.a&&(BYA[ni(r.a)]||BYK[ni(r.a)]))||null;
+    return m&&m.length?m[0].c:c;
+  }
+  function occMap(){var o={};ROWS.forEach(function(r){var k=effLoc(r);if(k)(o[k]=o[k]||[]).push(r)});return o}
+  function lstate(x,o,L){
+    var rs=o[x.c]||[];
+    if(!rs.length)return hasItem(x)?{k:"item",c:"#2f6f9f",rs:rs}:{k:"free",c:GRN,rs:rs};
     var w="ok";rs.forEach(function(r){var k=info(r,L[0],L[1],L[2],L[3]).k;if(k==="exp")w="exp";else if(k==="w1"&&w!=="exp")w="w1"});
     return {k:w,c:w==="exp"?RED:w==="w1"?ORG:"#2f6f9f",rs:rs};
   }
-  function freeCount(){var o=occMap(),f=0;LOCS.forEach(function(x){if(!o[x.c])f++});return f}
-  function toStr(x){return x.c+"|"+x.sd}
-  function commitMap(strs,act,det){
-    var b=DB.batch();put(b,"map",strs,MMAP.n||0);
+  function isFree(x,o){return !hasItem(x)&&!(o[x.c]&&o[x.c].length)}
+  function freeCount(){var o=occMap(),f=0;LOCS.forEach(function(x){if(isFree(x,o))f++});return f}
+  function toObj(x){return {c:x.c,s:x.sd,a:x.a||"",k:x.k||"",p:x.p||""}}
+  function commitMap(list,act,det){
+    var b=DB.batch();put(b,"map",list,MMAP.n||0);
     return b.commit().then(function(){try{lg(act,det||"")}catch(e){}return true}).catch(function(e){msgW("Could not save: "+((e&&e.message)||e),true);return false});
   }
   function cellStyle(st,hot){
@@ -2269,24 +2285,32 @@ PLATFORM="zanganam88@gmail.com";
       +(hot?'outline:3px solid #38bdf8;outline-offset:1px;':'');
   }
   function bindLocs(root){Array.prototype.forEach.call(root.querySelectorAll("[data-loc]"),function(el){el.onclick=function(){locSheet(el.dataset.loc)}})}
+  function rowsCount(ln){var s={};LOCS.forEach(function(x){if(x.ln===ln)s[x.sd]=1});return Object.keys(s).length}
+  function where(x){return 'Line '+x.ln+' · bay '+x.bay+' · level '+x.lv+(rowsCount(x.ln)>1?' · Row '+x.sd:'')}
+  function stockSum(rs,L){
+    if(!rs.length)return '<span class="meta">No stock batches entered</span>';
+    var n=0,any=false,best=null;rs.forEach(function(r){if(typeof r.n==="number"){n+=r.n;any=true}if(!best||r.e<best.e)best=r});
+    var i=info(best,L[0],L[1],L[2],L[3]);
+    return '<span class="meta">'+rs.length+' batch'+(rs.length===1?"":"es")+(any?' · '+n+' boxes':'')+' · next expiry </span><b style="color:'+i.c+'">'+show(best.e)+'</b>';
+  }
 
   function drawMap(){
     if(!wm)return;
-    var L=limits(),o=occMap(),idx={},used=0;
-    LOCS.forEach(function(x){idx[x.c]=1;if(o[x.c])used++});
-    var free=LOCS.length-used,q=wq.trim();
+    var L=limits(),o=occMap(),q=wq.trim(),free=0;
+    LOCS.forEach(function(x){if(isFree(x,o))free++});
+    var used=LOCS.length-free;
     $("wmRes").hidden=!q;$("wmMain").hidden=!!q;
-    if(q){drawSearch(q,o,L,idx);return}
-    var un=ROWS.filter(function(r){var k=nz(r.l);return k&&!idx[k]});
+    if(q){drawSearch(q,o,L);return}
+    var un=ROWS.filter(function(r){var k=effLoc(r);return k&&!LIDX[k]});
     var h='';
-    if(!LOCS.length){$("wmMain").innerHTML='<div class="empty">The map is empty. Open <b>Update the map</b> below and choose your Excel file with the location codes.</div>';$("wmUp").open=true;return}
+    if(!LOCS.length){$("wmMain").innerHTML='<div class="empty">The map is empty. Open <b>Update the map</b> below and choose your Excel file.</div>';$("wmUp").open=true;return}
     h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">'
       +[["Locations",LOCS.length,"var(--ink)"],["Used",used,"#2f6f9f"],["Free",free,GRN]].map(function(x){return '<div style="background:var(--card);border-radius:10px;padding:10px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.10)"><div class="meta">'+x[0]+'</div><div style="font-size:24px;font-weight:800;color:'+x[2]+'">'+x[1]+'</div></div>'}).join("")+'</div>';
     var V=[["lines","Lines"],["free","Free space ("+free+")"]];
     h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'+V.map(function(v){var on=wv===v[0]||(v[0]==="lines"&&/^line:/.test(wv));return '<button type="button" data-v="'+v[0]+'" style="'+btnStyle(on)+'">'+v[1]+'</button>'}).join("")+'</div>';
-    if(un.length)h+='<div class="meta" style="margin-bottom:10px;color:'+ORG+';font-weight:700">'+un.length+' product'+(un.length===1?" has":"s have")+' a location that is not on the map. <a href="#" id="wmUn" style="color:inherit">Show them</a></div>';
+    if(un.length)h+='<div class="meta" style="margin-bottom:10px;color:'+ORG+';font-weight:700">'+un.length+' stock batch'+(un.length===1?" has":"es have")+' a location that is not on the map. <a href="#" id="wmUn" style="color:inherit">Show them</a></div>';
     var lines={},lo=[];
-    LOCS.forEach(function(x){var s=lines[x.ln]||(lines[x.ln]={n:x.ln,t:0,u:0},lo.push(x.ln));s.t++;if(o[x.c])s.u++});
+    LOCS.forEach(function(x){var s=lines[x.ln];if(!s){s=lines[x.ln]={n:x.ln,t:0,u:0};lo.push(x.ln)}s.t++;if(!isFree(x,o))s.u++});
     if(wv==="lines"){
       h+=lo.map(function(n){var s=lines[n],pc=s.t?Math.round(s.u*100/s.t):0;
         return '<div data-line="'+n+'" style="background:var(--card);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.10)"><div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:20px;font-weight:800">Line '+n+'</div><div class="meta">'+s.u+' used · <b style="color:'+GRN+'">'+(s.t-s.u)+' free</b> · '+s.t+' total</div></div><div style="height:8px;border-radius:4px;background:var(--line);margin-top:8px;overflow:hidden"><div style="height:100%;width:'+pc+'%;background:#2f6f9f"></div></div></div>'}).join("");
@@ -2298,12 +2322,12 @@ PLATFORM="zanganam88@gmail.com";
       h+='<div class="row" style="margin:0 0 10px"><button id="wmBack" type="button" class="ghost">&larr; All lines</button><div style="font-size:20px;font-weight:800">Line '+ln+'</div></div>';
       sk.forEach(function(sd){
         var bays={},bk=[];sides[sd].forEach(function(x){if(!bays[x.bay]){bays[x.bay]=[];bk.push(x.bay)}bays[x.bay].push(x)});
-        h+=(sk.length>1?'<div style="font-weight:700;margin:8px 0 4px">Side '+sd+'</div>':'')+'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">'
-          +bk.map(function(b){return '<div style="text-align:center;min-width:44px"><div class="meta" style="font-size:12px">'+b+'</div>'+bays[b].slice().reverse().map(function(x){return '<div data-loc="'+x.c+'" style="'+cellStyle(lstate(x.c,o,L),x.c===hl)+'">'+x.lv+'</div>'}).join("")+'</div>'}).join("")+'</div>';
+        h+=(sk.length>1?'<div style="font-weight:700;margin:8px 0 4px">Row '+sd+'</div>':'')+'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">'
+          +bk.map(function(b){return '<div style="text-align:center;min-width:44px"><div class="meta" style="font-size:12px">'+b+'</div>'+bays[b].slice().reverse().map(function(x){return '<div data-loc="'+x.c+'" style="'+cellStyle(lstate(x,o,L),x.c===hl)+'">'+x.lv+'</div>'}).join("")+'</div>'}).join("")+'</div>';
       });
-      h+='<div class="meta">Top = highest level. Tap a square to see what is there. Free squares have a dashed green border.</div>';
+      h+='<div class="meta">Top = highest level. Tap a square to see the item and stock. Free squares have a dashed green border.</div>';
     }else if(wv==="free"){
-      var fl=LOCS.filter(function(x){return !o[x.c]&&(!flL||x.ln===flL)});
+      var fl=LOCS.filter(function(x){return isFree(x,o)&&(!flL||x.ln===flL)});
       h+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"><button type="button" data-fl="" style="padding:6px 12px;font-size:14px;'+btnStyle(!flL)+'">All lines</button>'+lo.map(function(n){return '<button type="button" data-fl="'+n+'" style="padding:6px 12px;font-size:14px;'+btnStyle(flL===n)+'">'+n+' ('+(lines[n].t-lines[n].u)+')</button>'}).join("")+'</div>';
       h+='<div class="row" style="margin:0 0 10px"><button id="wmXf" type="button" class="ghost">Export free locations (Excel)</button></div>';
       if(!fl.length)h+='<div class="empty">No free locations'+(flL?' on line '+flL:'')+'.</div>';
@@ -2317,7 +2341,7 @@ PLATFORM="zanganam88@gmail.com";
         if(fl.length>shown)h+='<div class="row" style="margin-top:10px"><button id="wmMore" type="button" class="ghost">Show more ('+(fl.length-shown)+' left)</button></div>';
       }
     }else if(wv==="unmapped"){
-      h+='<div class="row" style="margin:0 0 10px"><button id="wmBack" type="button" class="ghost">&larr; Back</button><div style="font-weight:800">Products with a location not on the map</div></div>'+un.map(function(r){return prodCard(r,L)}).join("");
+      h+='<div class="row" style="margin:0 0 10px"><button id="wmBack" type="button" class="ghost">&larr; Back</button><div style="font-weight:800">Stock batches with a location not on the map</div></div>'+un.map(function(r){return prodCard(r,L)}).join("");
     }
     $("wmMain").innerHTML=h;
     var M=$("wmMain");
@@ -2328,105 +2352,167 @@ PLATFORM="zanganam88@gmail.com";
     var bb=$("wmBack");if(bb)bb.onclick=function(){wv="lines";hl="";drawMap()};
     var mo=$("wmMore");if(mo)mo.onclick=function(){wlim+=300;drawMap()};
     var un_=$("wmUn");if(un_)un_.onclick=function(e){e.preventDefault();wv="unmapped";drawMap()};
-    var xf=$("wmXf");if(xf)xf.onclick=function(){exportLocs(LOCS.filter(function(x){return !o[x.c]&&(!flL||x.ln===flL)}),o,"free-locations")};
+    var xf=$("wmXf");if(xf)xf.onclick=function(){exportLocs(LOCS.filter(function(x){return isFree(x,o)&&(!flL||x.ln===flL)}),o,"free-locations")};
     bindLocs(M);
   }
   function prodCard(r,L){
-    var i=info(r,L[0],L[1],L[2],L[3]),p=pcode(nz(r.l));
+    var i=info(r,L[0],L[1],L[2],L[3]);
     return '<div data-pid="'+esc(r.i)+'" style="border-left:6px solid '+i.c+';background:var(--card);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.10)">'
       +'<div style="font-weight:700;overflow-wrap:anywhere">'+esc(r.p||"(no name)")+'</div><div style="font-weight:800;color:'+i.c+'">'+show(r.e)+'</div>'
       +'<div class="meta" style="overflow-wrap:anywhere">'+det(r)+'</div><div class="meta" style="text-align:right">'+i.left+'</div></div>';
   }
-  function drawSearch(q,o,L,idx){
-    var toks=q.toLowerCase().split(/\s+/).filter(Boolean),nq=nz(q);
-    var hits=ROWS.filter(function(r){
+  function itemCard(x,o,L){
+    var st=lstate(x,o,L);
+    return '<div data-loc="'+x.c+'" style="border-left:6px solid '+(st.k==="free"?GRN:st.c)+';background:var(--card);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.10)">'
+      +'<div style="display:flex;justify-content:space-between;gap:10px"><div style="font-weight:700;overflow-wrap:anywhere">'+esc(x.p||(st.k==="free"?"Free location":"(no description)"))+'</div><div style="font-weight:800;white-space:nowrap">'+x.c+'</div></div>'
+      +'<div class="meta" style="overflow-wrap:anywhere">'+(x.a?'Item '+esc(x.a):'')+(x.a&&x.k?' · ':'')+(x.k?'SKU '+esc(x.k):'')+(x.a||x.k?' · ':'')+where(x)+'</div>'
+      +'<div style="margin-top:2px">'+stockSum(st.rs,L)+'</div></div>';
+  }
+  function drawSearch(q,o,L){
+    var toks=q.toLowerCase().replace(/(\d),(\d)/g,"$1.$2").split(/\s+/).filter(Boolean),nq=nz(q),niq=ni(q);
+    var locHits=LOCS.filter(function(x){
+      var hay=(x.p+" "+x.a+" "+x.k+" "+x.c).toLowerCase();
+      return toks.every(function(t){return hay.indexOf(t)>=0})||(nq.length>=2&&x.c.indexOf(nq)===0)||(niq.length>=3&&(ni(x.a)===niq||ni(x.k)===niq));
+    });
+    var covered={};locHits.forEach(function(x){covered[x.c]=1});
+    var stockHits=ROWS.filter(function(r){
+      var k=effLoc(r);if(covered[k])return false;
       var hay=(r.p+" "+(r.a||"")+" "+r.l+" "+nz(r.l)).toLowerCase();
-      return toks.every(function(t){return hay.indexOf(t)>=0})||(nq.length>=2&&nz(r.l).indexOf(nq)===0)||(nq.length>=3&&nz(r.a||"")===nq);
+      return toks.every(function(t){return hay.indexOf(t)>=0})||(nq.length>=2&&nz(r.l).indexOf(nq)===0);
     }).sort(function(a,b){return a.e<b.e?-1:a.e>b.e?1:0});
-    var locs=nq.length>=2?LOCS.filter(function(x){return x.c.indexOf(nq)===0}):[];
     var h='';
-    if(hits.length)h+='<div class="meta" style="margin-bottom:6px">'+hits.length+' product'+(hits.length===1?"":"s")+' found. Tap one for all its information.</div>'+hits.slice(0,60).map(function(r){return prodCard(r,L)}).join("")+(hits.length>60?'<div class="meta">Showing the first 60. Type more to narrow it down.</div>':"");
-    if(locs.length){
-      h+='<div class="meta" style="margin:10px 0 6px">'+locs.length+' location'+(locs.length===1?"":"s")+' on the map</div><div style="display:flex;flex-wrap:wrap;gap:6px">'
-        +locs.slice(0,80).map(function(x){var st=lstate(x.c,o,L);return '<button type="button" data-loc="'+x.c+'" style="padding:6px 10px;font-size:14px;'+(st.k==="free"?'background:transparent;color:var(--ink);border:2px dashed '+GRN:'background:'+st.c+';color:#fff')+'">'+x.c+'</button>'}).join("")+'</div>'+(locs.length>80?'<div class="meta" style="margin-top:6px">Showing the first 80.</div>':"");
-    }
-    if(!hits.length&&!locs.length)h='<div class="empty">Nothing found for "'+esc(q)+'". Try the article number, part of a product name, or a location such as AB001.</div>';
+    if(locHits.length)h+='<div class="meta" style="margin-bottom:6px">'+locHits.length+' location'+(locHits.length===1?"":"s")+' found. Tap one for all the information.</div>'+locHits.slice(0,60).map(function(x){return itemCard(x,o,L)}).join("")+(locHits.length>60?'<div class="meta">Showing the first 60. Type more to narrow it down.</div>':"");
+    if(stockHits.length)h+='<div class="meta" style="margin:10px 0 6px">'+stockHits.length+' stock batch'+(stockHits.length===1?"":"es")+' not linked to a map location</div>'+stockHits.slice(0,40).map(function(r){return prodCard(r,L)}).join("");
+    if(!h)h='<div class="empty">Nothing found for "'+esc(q)+'". Try the item code, SKU, part of the description, or a location such as AB002.</div>';
     $("wmRes").innerHTML=h;
     Array.prototype.forEach.call($("wmRes").querySelectorAll("[data-pid]"),function(b){b.onclick=function(){var r=byId(ROWS,b.dataset.pid);if(r)prodSheet(r)}});
     bindLocs($("wmRes"));
   }
   $("wmq").oninput=function(){wq=this.value;drawMap()};
   $("wmScan").onclick=function(){scan(function(c){$("wmq").value=c;wq=c;drawMap()})};
-
-  function prodSheet(r){
-    var L=limits(),i=info(r,L[0],L[1],L[2],L[3]),code=nz(r.l),p=pcode(code),onMap=false;
-    LOCS.forEach(function(x){if(x.c===code)onMap=x});
-    var key=(r.a||"").toLowerCase(),nm_=(r.p||"").toLowerCase();
-    var same=ROWS.filter(function(x){return x.i!==r.i&&((key&&(x.a||"").toLowerCase()===key)||(!key&&nm_&&(x.p||"").toLowerCase()===nm_))});
-    var tot=typeof r.n==="number"?r.n:0,anyN=typeof r.n==="number";same.forEach(function(x){if(typeof x.n==="number"){tot+=x.n;anyN=true}});
-    var br=BRK.filter(function(x){return (key&&(x.a||"").toLowerCase()===key)||(!key&&nm_&&(x.p||"").toLowerCase()===nm_)}),bb=0,last="";
-    br.forEach(function(x){if(typeof x.n==="number")bb+=x.n;var d=ddOf(x);if(d>last)last=d});
-    function row(k,v){return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line)"><div class="meta">'+k+'</div><div style="font-weight:600;text-align:right;overflow-wrap:anywhere">'+v+'</div></div>'}
-    sheet('<h2 style="margin:0 0 6px;overflow-wrap:anywhere">'+esc(r.p||"(no name)")+'</h2>'
-      +row("Article number",esc(r.a||"-"))
-      +row("Location",esc(r.l||"-")+(onMap?'<div class="meta" style="font-weight:400">Line '+onMap.ln+' · bay '+onMap.bay+' · level '+onMap.lv+(sidesCount(onMap.ln)>1?' · side '+onMap.sd:'')+'</div>':'<div class="meta" style="font-weight:400;color:'+ORG+'">Not on the map</div>'))
-      +row("Boxes",typeof r.n==="number"?r.n:"-")
-      +row("Expiry date",'<span style="color:'+i.c+'">'+show(r.e)+'</span><div class="meta" style="font-weight:400">'+i.left+'</div>')
-      +(same.length||anyN?row("Total boxes in stock (all locations)",anyN?tot:"-"):"")
-      +(same.length?row("Also stored at",same.map(function(x){return '<button type="button" class="ghost" data-loc2="'+esc(x.i)+'" style="padding:4px 10px;font-size:13px;margin:2px">'+esc(x.l||"-")+(typeof x.n==="number"?" ("+x.n+")":"")+'</button>'}).join("")):"")
-      +row("Damaged or taken out before",br.length?br.length+" record"+(br.length===1?"":"s")+(bb?" · "+bb+" boxes":"")+" · last "+show(last):"None")
-      +'<div class="row" style="margin-top:14px">'+(onMap?'<button id="spMap" type="button">Show on map</button>':'')+'<button id="spEd" type="button" class="ghost">Edit or take out</button><button id="spX" type="button" class="ghost">Close</button></div>');
-    $("spX").onclick=closeSheet;
-    $("spEd").onclick=function(){rowSheet(r)};
-    if(onMap)$("spMap").onclick=function(){closeSheet();wq="";$("wmq").value="";wv="line:"+onMap.ln;hl=onMap.c;drawMap();try{wm.scrollTop=0}catch(e){}};
-    Array.prototype.forEach.call(document.querySelectorAll("[data-loc2]"),function(b){b.onclick=function(){var x=byId(ROWS,b.dataset.loc2);if(x)prodSheet(x)}});
+  function sRow(k,v){return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line)"><div class="meta">'+k+'</div><div style="font-weight:600;text-align:right;overflow-wrap:anywhere">'+v+'</div></div>'}
+  function damageOf(a,p){
+    var key=ni(a),nm_=(p||"").toLowerCase(),bb=0,last="",cnt=0;
+    BRK.forEach(function(x){if((key&&ni(x.a)===key)||(!key&&nm_&&(x.p||"").toLowerCase()===nm_)){cnt++;if(typeof x.n==="number")bb+=x.n;var d=ddOf(x);if(d>last)last=d}});
+    return cnt?cnt+" record"+(cnt===1?"":"s")+(bb?" · "+bb+" boxes":"")+" · last "+show(last):"None";
   }
-  function sidesCount(ln){var s={};LOCS.forEach(function(x){if(x.ln===ln)s[x.sd]=1});return Object.keys(s).length}
+  // full information about a map location + its item
   function locSheet(code){
-    var L=limits(),o=occMap(),x=null;LOCS.forEach(function(y){if(y.c===code)x=y});
-    if(!x)return;var st=lstate(code,o,L);
-    sheet('<h2 style="margin:0 0 4px">'+x.c+'</h2><div class="meta">Line '+x.ln+' · bay '+x.bay+' · level '+x.lv+(sidesCount(x.ln)>1?' · side '+x.sd:'')+'</div>'
-      +(st.rs.length?'<div style="font-weight:700;margin:12px 0 6px">What is here ('+st.rs.length+')</div>'+st.rs.map(function(r){return prodCard(r,L)}).join(""):'<div style="margin:12px 0;padding:10px 12px;border-radius:10px;border:2px dashed '+GRN+';font-weight:700;color:'+GRN+'">Free. Ready for a new product.</div>')
-      +'<div class="row" style="margin-top:12px">'+(st.rs.length?'':'<button id="lsPut" type="button">Put a product here</button>')+'<button id="lsDel" type="button" class="ghost">Remove location</button><button id="lsX" type="button" class="ghost">Close</button></div>');
+    var L=limits(),o=occMap(),x=LIDX[code];if(!x)return;
+    var st=lstate(x,o,L),rs=st.rs,same=(x.a&&BYA[ni(x.a)]||[]).filter(function(y){return y.c!==x.c});
+    var tot=0,anyN=false;rs.forEach(function(r){if(typeof r.n==="number"){tot+=r.n;anyN=true}});
+    sheet('<h2 style="margin:0 0 4px">'+x.c+'</h2><div class="meta">'+where(x)+'</div>'
+      +(hasItem(x)?'<div style="margin:10px 0 4px;font-weight:800;font-size:18px;overflow-wrap:anywhere">'+esc(x.p||"(no description)")+'</div>'+sRow("Item code",esc(x.a||"-"))+sRow("SKU",esc(x.k||"-")):'<div style="margin:12px 0;padding:10px 12px;border-radius:10px;border:2px dashed '+GRN+';font-weight:700;color:'+GRN+'">'+(rs.length?'No item assigned to this location':'Free. Ready for a new item.')+'</div>')
+      +(rs.length?'<div style="font-weight:700;margin:12px 0 6px">Stock here ('+rs.length+' batch'+(rs.length===1?"":"es")+(anyN?', '+tot+' boxes':'')+')</div>'+rs.map(function(r){return prodCard(r,L)}).join(""):(hasItem(x)?'<div class="meta" style="margin-top:8px">No stock batches entered for this item yet.</div>':''))
+      +(same.length?sRow("Same item also at",same.map(function(y){return '<button type="button" class="ghost" data-loc3="'+y.c+'" style="padding:4px 10px;font-size:13px;margin:2px">'+y.c+'</button>'}).join("")):"")
+      +(hasItem(x)?sRow("Damaged or taken out before",damageOf(x.a,x.p)):"")
+      +'<div class="row" style="margin-top:14px">'+(hasItem(x)?'<button id="lsBatch" type="button">Add stock batch</button>':'')+'<button id="lsItem" type="button" '+(hasItem(x)?'class="ghost"':'')+'>'+(hasItem(x)?"Change item":"Assign item here")+'</button>'
+      +(hasItem(x)?'<button id="lsClear" type="button" class="ghost">Make location free</button>':'')+'<button id="lsDel" type="button" class="ghost">Remove location</button><button id="lsX" type="button" class="ghost">Close</button></div>');
     $("lsX").onclick=closeSheet;
     Array.prototype.forEach.call(sh.querySelectorAll("[data-pid]"),function(b){b.onclick=function(){var r=byId(ROWS,b.dataset.pid);if(r)prodSheet(r)}});
-    if($("lsPut"))$("lsPut").onclick=function(){addSheet(code)};
-    $("lsDel").onclick=function(){
-      if(!confirm("Remove location "+code+" from the map?"+(st.rs.length?" Products stored here stay in the stock list, but this location will no longer be on the map.":"")))return;
-      commitMap(MAP.filter(function(s){return String(s).split("|")[0]!==code}),"Map location removed",code).then(function(ok){if(ok)closeSheet()});
+    Array.prototype.forEach.call(sh.querySelectorAll("[data-loc3]"),function(b){b.onclick=function(){locSheet(b.dataset.loc3)}});
+    if($("lsBatch"))$("lsBatch").onclick=function(){addSheet(x.c,{p:x.p,a:x.a})};
+    $("lsItem").onclick=function(){itemSheet(x)};
+    if($("lsClear"))$("lsClear").onclick=function(){
+      if(!confirm("Make "+x.c+" free? The item is removed from this location. Stock batches stay in the stock list."))return;
+      saveItem(x.c,"","","").then(function(ok){if(ok)closeSheet()});
     };
+    $("lsDel").onclick=function(){
+      if(!confirm("Remove location "+code+" from the map?"+(rs.length?" Stock batches stay in the stock list, but this location will no longer be on the map.":"")))return;
+      commitMap(MAP.filter(function(m){return (typeof m==="string"?m.split("|")[0]:m.c)!==code}),"Map location removed",code).then(function(ok){if(ok)closeSheet()});
+    };
+  }
+  function saveItem(code,a,k,p){
+    return commitMap(LOCS.map(function(y){var t=toObj(y);if(y.c===code){t.a=a;t.k=k;t.p=p}return t}),a||p?"Map item assigned":"Map item removed",code+(p?" · "+p:""));
+  }
+  function itemSheet(x){
+    sheet('<h2 style="margin:0 0 4px">'+(hasItem(x)?"Change item":"Assign item")+' · '+x.c+'</h2>'
+      +'<label class="wide" style="margin-top:8px">Item code<input id="isA" list="exAd" autocomplete="off" value="'+esc(x.a)+'"></label>'
+      +'<label class="wide" style="margin-top:8px">SKU<input id="isK" autocomplete="off" value="'+esc(x.k)+'"></label>'
+      +'<label class="wide" style="margin-top:8px">Description<input id="isP" list="exPd" autocomplete="off" value="'+esc(x.p)+'"></label>'
+      +'<div class="row" style="margin-top:14px"><button id="isS" type="button">Save</button><button id="isC" type="button" class="ghost">Cancel</button></div>');
+    $("isC").onclick=function(){locSheet(x.c)};
+    $("isA").onchange=function(){var m=BYA[ni(this.value)];if(m&&m.length){if(!$("isP").value)$("isP").value=m[0].p;if(!$("isK").value)$("isK").value=m[0].k}};
+    $("isS").onclick=function(){
+      var a=$("isA").value.trim(),k=$("isK").value.trim(),p=$("isP").value.trim();
+      if(!a&&!p&&!k){alert("Enter the item code or description.");return}
+      saveItem(x.c,a,k,p).then(function(ok){if(ok)locSheet(x.c)});
+    };
+  }
+  // full information about one stock batch
+  function prodSheet(r){
+    var L=limits(),i=info(r,L[0],L[1],L[2],L[3]),code=effLoc(r),x=LIDX[code]||null;
+    var key=ni(r.a),nm_=(r.p||"").toLowerCase();
+    var same=ROWS.filter(function(y){return y.i!==r.i&&((key&&ni(y.a)===key)||(!key&&nm_&&(y.p||"").toLowerCase()===nm_))});
+    var tot=typeof r.n==="number"?r.n:0,anyN=typeof r.n==="number";same.forEach(function(y){if(typeof y.n==="number"){tot+=y.n;anyN=true}});
+    sheet('<h2 style="margin:0 0 6px;overflow-wrap:anywhere">'+esc(r.p||(x&&x.p)||"(no name)")+'</h2>'
+      +sRow("Article / item code",esc(r.a||(x&&x.a)||"-"))
+      +(x&&x.k?sRow("SKU",esc(x.k)):"")
+      +sRow("Location",esc(r.l||"-")+(x?'<div class="meta" style="font-weight:400">'+where(x)+(nz(r.l)!==x.c?' · assigned location '+x.c:'')+'</div>':'<div class="meta" style="font-weight:400;color:'+ORG+'">Not on the map</div>'))
+      +sRow("Boxes",typeof r.n==="number"?r.n:"-")
+      +sRow("Expiry date",'<span style="color:'+i.c+'">'+show(r.e)+'</span><div class="meta" style="font-weight:400">'+i.left+'</div>')
+      +(same.length||anyN?sRow("Total boxes in stock (all batches)",anyN?tot:"-"):"")
+      +(same.length?sRow("Other batches",same.map(function(y){return '<button type="button" class="ghost" data-loc2="'+esc(y.i)+'" style="padding:4px 10px;font-size:13px;margin:2px">'+show(y.e)+(typeof y.n==="number"?" ("+y.n+")":"")+'</button>'}).join("")):"")
+      +sRow("Damaged or taken out before",damageOf(r.a,r.p))
+      +'<div class="row" style="margin-top:14px">'+(x?'<button id="spMap" type="button">Show on map</button>':'')+'<button id="spEd" type="button" class="ghost">Edit or take out</button><button id="spX" type="button" class="ghost">Close</button></div>');
+    $("spX").onclick=closeSheet;
+    $("spEd").onclick=function(){rowSheet(r)};
+    if(x)$("spMap").onclick=function(){closeSheet();wq="";$("wmq").value="";wv="line:"+x.ln;hl=x.c;drawMap();try{wm.scrollTop=0}catch(e){}};
+    Array.prototype.forEach.call(document.querySelectorAll("[data-loc2]"),function(b){b.onclick=function(){var y=byId(ROWS,b.dataset.loc2);if(y)prodSheet(y)}});
   }
 
   // ---------- export ----------
   function exportLocs(list,o,name){
     if(!list.length){alert("Nothing to export.");return}
-    download(xlsx("Locations",["Location","Line","Bay","Level","Side","Status","Product","Article number","Boxes","Expiry date"],list.map(function(x){
-      var rs=o[x.c]||[],r=rs[0]||{};return [x.c,x.ln,x.bay,x.lv,x.sd,rs.length?"Used":"Free",rs.map(function(y){return y.p}).join(", "),rs.map(function(y){return y.a||""}).join(", "),rs.reduce(function(s,y){return s+(typeof y.n==="number"?y.n:0)},0)||"",r.e||""]}),[9],[14,8,8,8,8,10,30,18,9,14]),name+"-"+dayStr(new Date())+".xlsx");
+    download(xlsx("Locations",["Location","Line","Bay","Level","Row","Status","Item code","SKU","Description","Stock boxes","Next expiry"],list.map(function(x){
+      var rs=o[x.c]||[],boxes=0,any=false,best="";rs.forEach(function(r){if(typeof r.n==="number"){boxes+=r.n;any=true}if(!best||r.e<best)best=r.e});
+      return [x.c,x.ln,x.bay,x.lv,x.sd,isFree(x,o)?"Free":"Used",x.a,x.k,x.p,any?boxes:"",best]}),[10],[12,7,7,7,6,8,14,26,36,11,13]),name+"-"+dayStr(new Date())+".xlsx");
   }
   $("wmXa").onclick=function(){exportLocs(LOCS,occMap(),"warehouse-map")};
 
-  // ---------- update the map ----------
+  // ---------- update the map (Excel: location + item) ----------
   function mcode(v){
     if(v===null||v===undefined||typeof v==="number")return "";
     var s=String(v).trim().toUpperCase();
     if(!/^[A-Z]{1,4}[\s\-_.]*\d{3,8}(?:[\s\-_.]*\d{1,2})?$/.test(s))return "";
     return nz(s);
   }
+  var NOISE=/^(pathway|walkway|aisle|gang|electric power|empty|leeg|free|vrij|row \d)$/i;
+  function itemFromCells(cells){
+    var a="",k="",rest=[];
+    cells.forEach(function(c){
+      if(NOISE.test(c))return;
+      if(!a&&/^\d{2,4}[.,]\d{2,6}$/.test(c)){a=c.replace(",",".");return}
+      if(!k&&/^[A-Za-z0-9]+(?:-[A-Za-z0-9.]+)+$/.test(c)&&/[A-Za-z]/.test(c)&&!/\s/.test(c)){k=c;return}
+      rest.push(c);
+    });
+    if(!a){for(var i=0;i<rest.length;i++)if(/^\d{3,}$/.test(rest[i])){a=rest[i];rest.splice(i,1);break}}
+    var p="";rest.forEach(function(c){if(c.length>p.length)p=c});
+    if(p.length<4)p="";
+    return {a:a,k:k,p:p};
+  }
   function mapFromSheets(sheets){
-    var cells=[],byLine={},res={},seen={};
-    sheets.forEach(function(sh){sh.rows.forEach(function(r){r.forEach(function(v,c){var k=mcode(v);if(k&&pcode(k))cells.push({k:k,c:c})})})});
-    cells.forEach(function(x){var p=pcode(x.k);(byLine[p.ln]=byLine[p.ln]||{})[x.c]=1});
-    var cols={};Object.keys(byLine).forEach(function(l){cols[l]=Object.keys(byLine[l]).map(Number).sort(function(a,b){return a-b})});
-    cells.forEach(function(x){if(seen[x.k])return;seen[x.k]=1;res[x.k]=cols[pcode(x.k).ln].indexOf(x.c)+1});
+    var res={};
+    sheets.forEach(function(sh){sh.rows.forEach(function(r){
+      var start=0;
+      for(var c=0;c<r.length;c++){
+        var k=mcode(r[c]);if(!k||!pcode(k))continue;
+        var cells=[];for(var j=start;j<c;j++){var v=r[j];if(v!==undefined&&v!==null&&String(v).trim()!=="")cells.push(String(v).trim())}
+        start=c+1;
+        var it=itemFromCells(cells),p=pcode(k);
+        if(!res[k]||((it.p||it.a)&&!(res[k].p||res[k].a)))res[k]={c:k,s:rowOf(p.bay),a:it.a,k:it.k,p:it.p};
+      }
+    })});
     return res;
   }
   function mapPreview(res,fname){
-    var codes=Object.keys(res),by={};
-    codes.forEach(function(c){var p=pcode(c),s=by[p.ln]||(by[p.ln]={n:0,sd:{}});s.n++;s.sd[res[c]]=1});
+    var codes=Object.keys(res),by={},withItem=0;
+    codes.forEach(function(c){var p=pcode(c),s=by[p.ln]||(by[p.ln]={n:0,i:0});s.n++;if(res[c].p||res[c].a){s.i++;withItem++}});
     var ls=Object.keys(by).sort();
-    if(!codes.length){$("wmPv").innerHTML='<div class="meta" style="color:var(--bad)">No location codes found. A code looks like AA00100 (letters, then numbers).</div>';WP=null;return}
+    if(!codes.length){$("wmPv").innerHTML='<div class="meta" style="color:var(--bad)">No location codes found. A code looks like AA00200 (letters, then numbers).</div>';WP=null;return}
     WP={res:res,file:fname};
-    $("wmPv").innerHTML='<div style="font-weight:700">'+codes.length+' locations found on '+ls.length+' lines</div><div class="meta" style="margin:4px 0 8px">'+ls.map(function(l){return l+": "+by[l].n+(Object.keys(by[l].sd).length>1?" ("+Object.keys(by[l].sd).length+" sides)":"")}).join(" · ")+'</div><div class="row"><button id="wmAddI" type="button">Add to the map</button><button id="wmRepI" type="button" class="ghost">Replace the map</button></div>';
+    var ex=codes.filter(function(c){return res[c].p}).slice(0,3).map(function(c){return esc(c)+" · "+esc(res[c].a)+(res[c].k?" · "+esc(res[c].k):"")+" · "+esc(res[c].p)}).join("<br>");
+    $("wmPv").innerHTML='<div style="font-weight:700">'+codes.length+' locations on '+ls.length+' lines · '+withItem+' with an item, '+(codes.length-withItem)+' empty</div><div class="meta" style="margin:4px 0 8px">'+ls.map(function(l){return l+": "+by[l].n+" ("+by[l].i+" with item)"}).join(" · ")+(ex?'<br><br>Example:<br>'+ex:'')+'</div><div class="row"><button id="wmAddI" type="button">Add to the map</button><button id="wmRepI" type="button" class="ghost">Replace the map</button></div>';
     $("wmAddI").onclick=function(){doMapImport(false)};$("wmRepI").onclick=function(){doMapImport(true)};
   }
   $("wmf").onchange=function(){
@@ -2443,11 +2529,11 @@ PLATFORM="zanganam88@gmail.com";
   function doMapImport(replace){
     if(!WP)return;
     if(replace&&MAP.length&&!confirm("This replaces the current map of "+MAP.length+" locations. Continue?"))return;
-    var m={};if(!replace)MAP.forEach(function(s){var a=String(s).split("|");m[a[0]]=+a[1]||1});
+    var m={};if(!replace)LOCS.forEach(function(x){m[x.c]=toObj(x)});
     Object.keys(WP.res).forEach(function(c){m[c]=WP.res[c]});
-    var strs=Object.keys(m).map(function(c){return c+"|"+m[c]}),n=Object.keys(WP.res).length,f=WP.file;
-    commitMap(strs,replace?"Map replaced from Excel":"Map locations added from Excel",n+" locations from "+f).then(function(ok){
-      if(!ok)return;msgW("Done: "+n+" locations "+(replace?"loaded":"added")+". The map now has "+strs.length+" locations.",false);
+    var list=Object.keys(m).map(function(c){return m[c]}),n=Object.keys(WP.res).length,f=WP.file;
+    commitMap(list,replace?"Map replaced from Excel":"Map locations added from Excel",n+" locations from "+f).then(function(ok){
+      if(!ok)return;msgW("Done: "+n+" locations "+(replace?"loaded":"added")+". The map now has "+list.length+" locations.",false);
       $("wmPv").innerHTML="";$("wmf").value="";$("wmPaste").value="";WP=null;$("wmUp").open=false;wv="lines";
     });
   }
@@ -2455,18 +2541,16 @@ PLATFORM="zanganam88@gmail.com";
     var ln=($("wmaL").value||"").trim().toUpperCase().replace(/[^A-Z]/g,""),b1=parseInt($("wmaB1").value,10),b2=parseInt($("wmaB2").value,10),v1=parseInt($("wmaV1").value,10),v2=parseInt($("wmaV2").value,10);
     if(isNaN(v1))v1=0;if(isNaN(v2))v2=v1;if(isNaN(b2))b2=b1;
     if(!ln||isNaN(b1)||b1<0||b2<b1||v2<v1){alert("Enter the line letters, the bays (from and to) and the levels (from and to).");return}
-    var n=(b2-b1+1)*(v2-v1+1);
-    if(n>5000){alert("That is too many at once (max 5000).");return}
-    var sd=+$("wmaS").value,m={},add=0;
-    MAP.forEach(function(s){var a=String(s).split("|");m[a[0]]=+a[1]||1});
-    for(var b=b1;b<=b2;b++)for(var v=v1;v<=v2;v++){var c=ln+("000"+b).slice(-3)+("00"+v).slice(-2);if(!m[c]){m[c]=sd;add++}}
+    if((b2-b1+1)*(v2-v1+1)>5000){alert("That is too many at once (max 5000).");return}
+    var m={},add=0;LOCS.forEach(function(x){m[x.c]=toObj(x)});
+    for(var b=b1;b<=b2;b++)for(var v=v1;v<=v2;v++){var c=ln+("000"+b).slice(-3)+("00"+v).slice(-2);if(!m[c]){m[c]={c:c,s:rowOf(b),a:"",k:"",p:""};add++}}
     if(!add){msgW("Those locations are already on the map.",false);return}
-    if(!confirm("Add "+add+" new locations on line "+ln+"?"))return;
-    commitMap(Object.keys(m).map(function(c){return c+"|"+m[c]}),"Map locations added by hand",add+" on line "+ln).then(function(ok){if(ok){msgW(add+" locations added on line "+ln+".",false);wv="line:"+ln;$("wmUp").open=false}});
+    if(!confirm("Add "+add+" new empty locations on line "+ln+"?"))return;
+    commitMap(Object.keys(m).map(function(c){return m[c]}),"Map locations added by hand",add+" on line "+ln).then(function(ok){if(ok){msgW(add+" locations added on line "+ln+".",false);wv="line:"+ln;$("wmUp").open=false}});
   };
   $("wmClr").onclick=function(){
     if(!MAP.length){msgW("The map is already empty.",false);return}
-    if(!confirm("Delete the whole map ("+MAP.length+" locations)? Your products are not deleted."))return;
+    if(!confirm("Delete the whole map ("+MAP.length+" locations)? Your stock list is not deleted."))return;
     if(!confirm("Are you sure? This cannot be undone."))return;
     var b=DB.batch(),i,old=Math.max(MMAP.n||0,Math.ceil(MAP.length/CH),10);
     for(i=0;i<=old;i++)b.delete(DB.doc("app/map_"+i));
