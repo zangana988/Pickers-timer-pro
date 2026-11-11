@@ -1525,6 +1525,7 @@ PLATFORM="zanganam88@gmail.com";
     +'<div style="display:grid;gap:14px;margin-top:30px">'
     +'<button id="hp" type="button" style="padding:22px 14px;font-size:20px">Pickers management</button>'
     +'<button id="he" type="button" style="padding:22px 14px;font-size:20px">Expirations management<div id="hes" style="font-size:14px;font-weight:600;margin-top:6px"></div></button></div>'
+    +'<div id="hall" hidden style="margin-top:22px"><button id="hallb" type="button" style="width:100%;padding:16px 14px;font-size:17px">All companies (owner)</button><div class="meta" style="margin-top:6px">You are viewing this company as the owner. Tap to go back to the list of all companies.</div></div>'
     +'<div class="row" style="margin-top:22px"><button id="hso" type="button" class="ghost">Sign out</button></div></div>';
   document.body.appendChild(hub);
 
@@ -1562,6 +1563,8 @@ PLATFORM="zanganam88@gmail.com";
     var own=ROLE==="owner"&&!ap.hidden;
     if(ap.hidden)page="menu";
     hub.hidden=!(own&&page==="menu");ex.hidden=!(own&&page==="exp");mb.hidden=!own;
+    var cu=firebase.auth().currentUser;
+    $("hall").hidden=!(cu&&(cu.email||"").toLowerCase()===PLATFORM.toLowerCase());
     if(own){$("hco").textContent=COMP&&COMP.name||"";subscribe();drawHub()}
   }
   new MutationObserver(sync).observe(ap,{attributes:true,attributeFilter:["hidden"]});
@@ -1571,6 +1574,7 @@ PLATFORM="zanganam88@gmail.com";
   mb.onclick=function(){page="menu";sync()};
   $("exm").onclick=function(){page="menu";sync()};
   $("hso").onclick=function(){$("so").click()};
+  $("hallb").onclick=function(){RAW.doc("members/"+PLATFORM).delete().then(function(){location.reload()}).catch(dbe)};
 
   // ---------- dates ----------
   function today0(){var d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate())}
