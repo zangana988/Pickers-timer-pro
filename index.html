@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Picker Timers</title>
+<link rel="manifest" href="manifest.json">
 <style>
 :root{--bg:#eef0ee;--card:#fff;--ink:#1b2220;--mute:#66706c;--line:#d5dad7;--ok:#168a3e;--okbg:#e3f4e8;--bad:#c9261b;--badbg:#fde7e5;--btn:#1b2220;--btnink:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141816;--card:#1e2421;--ink:#eef2ef;--mute:#9aa6a0;--line:#2f3833;--ok:#43c46e;--okbg:#17301f;--bad:#ff6b5e;--badbg:#3a1a17;--btn:#eef2ef;--btnink:#141816}}
@@ -89,6 +90,7 @@ textarea{width:100%;margin-top:8px;font:13px monospace;background:var(--card);co
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script>
 // PASTE YOUR FIREBASE SETTINGS HERE (Firebase console > Project settings > Your apps > Web app)
 var FIREBASE_CONFIG={apiKey:"AIzaSyCzS3Szv_JcVMYGQFlz3VmESNLwW1xiL0E",authDomain:"pickers-timer.firebaseapp.com",projectId:"pickers-timer",appId:"1:928812160632:web:eed8ef63a89f7f9f2e3f8d"};
@@ -122,7 +124,8 @@ $("f").onsubmit=function(e){
   var c=boxes();
   var o={id:Date.now(),name:$("n").value.trim(),order:$("o").value.trim(),mins:+$("m").value,start:Date.now(),boxes:c[0],est:est(c),by:me()};
   if(!DB){warn("Not connected. Check your internet and sign in.");return}
-  DB.doc("active/"+o.id).set(o).catch(dbe);
+  if(o.mins*60000>CFG.lead*60000)o.warnAt=o.start+o.mins*60000-CFG.lead*60000;
+  DB.doc("active/"+o.id).set(o).then(function(){if(window.alphaNotify)window.alphaNotify(o.id,"assign")}).catch(dbe);
   $("o").value="";$("b").value=0;$("m").value=15;upd();save();render();
 };
 function finish(id){
@@ -317,7 +320,7 @@ rr();render();stats();setInterval(render,1000);
     var tm0=setTimeout(function(){warn("Cannot reach the shared data yet. Showing what was loaded before.")},10000);
     function ok(){clearTimeout(tm0);warn("")}
     function er(e){clearTimeout(tm0);warn(e&&e.code==="permission-denied"?"Access denied. Ask your manager to check your access, then sign out and in.":"Shared data error: "+(e&&e.code))}
-    DB.collection("active").onSnapshot(function(q){S.active=q.docs.map(function(d){return Object.assign({},d.data())});ok();render()},er);
+    DB.collection("active").onSnapshot(function(q){var all=q.docs.map(function(d){return Object.assign({},d.data())});S.active=all.filter(function(a){return !a.done});S.doneQ=all.filter(function(a){return !!a.done});ok();render()},er);
     DB.doc("app/roster").onSnapshot(function(d){S.roster=d.exists?((d.data().list)||[]).slice():[];ok();rr()},er);
     DB.collection("people").onSnapshot(function(q){PEOPLE={};PROLE={};q.docs.forEach(function(d){var x=d.data();if(x.email){var k=String(x.email).toLowerCase();PEOPLE[k]=x.name||"";PROLE[k]=x.role||""}});ok();render();stats();paintWho()},er);
     var cut=new Date();cut.setDate(cut.getDate()-190);
@@ -1090,7 +1093,7 @@ rr();render();stats();setInterval(render,1000);
 })();
 // Two-minute check alert: full-screen flashing warning with Continue / Stop timer
 (function(){
-  if(new URLSearchParams(location.search).get("display")==="1")return;
+  if(new URLSearchParams(location.search).get("display")==="1"||new URLSearchParams(location.search).get("me")==="1")return;
   var GRACE=300000,dismissed={},cur=null;
   var st=document.createElement("style");
   st.textContent="@keyframes chkflash{0%,100%{background:#c9261b}50%{background:#7f1510}}#chk{animation:chkflash 1s infinite}@media (prefers-reduced-motion:reduce){#chk{animation:none!important}}#chk button{font-size:24px;padding:18px 22px;border-radius:14px;min-width:250px}";
@@ -1527,7 +1530,7 @@ PLATFORM="zanganam88@gmail.com";
     +'<button id="he" type="button" style="padding:22px 14px;font-size:20px">Expirations management<div id="hes" style="font-size:14px;font-weight:600;margin-top:6px"></div></button>'
     +'<button id="hm" type="button" style="padding:22px 14px;font-size:20px">Warehouse Map<div id="hms" style="font-size:14px;font-weight:600;margin-top:6px"></div></button></div>'
     +'<div id="hall" hidden style="margin-top:22px"><button id="hallb" type="button" style="width:100%;padding:16px 14px;font-size:17px">All companies (owner)</button><div class="meta" style="margin-top:6px">You are viewing this company as the owner. Tap to go back to the list of all companies.</div></div>'
-    +'<div class="row" style="margin-top:22px"><button id="hso" type="button" class="ghost">Sign out</button></div></div>';
+    +'<div class="row" style="margin-top:22px"><button id="hpush" type="button" class="ghost">Phone alerts</button><button id="hso" type="button" class="ghost">Sign out</button></div></div>';
   document.body.appendChild(hub);
 
   // ---------- expirations page ----------
@@ -2557,7 +2560,270 @@ PLATFORM="zanganam88@gmail.com";
     b.delete(DB.doc("app/mapmeta"));
     b.commit().then(function(){try{lg("Map cleared",MAP.length+" locations")}catch(e){}msgW("The map was cleared.",false);$("wmUp").open=false;wv="lines"}).catch(function(e){msgW("Could not clear the map: "+((e&&e.message)||e),true)});
   };
+
+  // ---------- Phone alerts (push notifications) ----------
+  var PLS="alphaPushTok";
+  function pushSupported(){try{return "serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window&&typeof firebase.messaging==="function"}catch(e){return false}}
+  function standalone(){try{return window.navigator.standalone===true||(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)}catch(e){return false}}
+  function isApple(){return /iPhone|iPad|iPod/.test(navigator.userAgent||"")||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)}
+  function tokId(t){var h=5381,i;for(i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))|0;return "tok_"+(h>>>0).toString(36)+"_"+t.slice(-8).replace(/[^A-Za-z0-9]/g,"x")}
+  function myTok(){try{return localStorage.getItem(PLS)||""}catch(e){return ""}}
+  function setTok(t){try{if(t)localStorage.setItem(PLS,t);else localStorage.removeItem(PLS)}catch(e){}}
+  function pushSheet(){
+    var ok=pushSupported(),perm=ok?Notification.permission:"unsupported";
+    var base='<h2 style="margin:0 0 4px">Phone alerts</h2><div class="meta" style="margin-bottom:10px">A message on your phone every morning when products are expired, close to expiry, or damaged boxes are waiting for your confirmation. It also arrives when the app is closed.</div>';
+    if(!ok){
+      sheet(base+'<div style="padding:12px;border-radius:10px;background:var(--badbg);color:var(--bad);font-weight:600">'+(isApple()&&!standalone()
+        ?'First add ALPHA WMS to your Home Screen:<ol style="margin:8px 0 0;padding-left:20px;font-weight:400;color:var(--ink)"><li>In Safari tap the Share button.</li><li>Tap <b>Add to Home Screen</b>, then <b>Add</b>.</li><li>Open ALPHA WMS from the new icon on your Home Screen.</li><li>Come back here (Menu, Phone alerts) and turn alerts on.</li></ol><div class="meta" style="margin-top:8px">Needs iOS 16.4 or newer.</div>'
+        :'This browser does not support phone alerts. On iPhone or iPad use the Home Screen icon. On a computer use Chrome, Edge or Firefox.')+'</div><div class="row" style="margin-top:14px"><button id="paX" type="button" class="ghost">Close</button></div>');
+      $("paX").onclick=closeSheet;return;
+    }
+    sheet(base+'<div class="meta">Loading...</div>');
+    DB.doc("app/pushcfg").get().then(function(d){return d.exists?d.data():{}}).catch(function(){return {}}).then(function(cfg){paDraw({vapid:cfg.vapid||"",worker:cfg.worker||""})});
+  }
+  function paDraw(cfg,showSet){
+    var on=!!myTok()&&Notification.permission==="granted",perm=Notification.permission;
+    sheet('<h2 style="margin:0 0 4px">Phone alerts</h2><div class="meta" style="margin-bottom:10px">A message on your phone every morning when products are expired, close to expiry, or damaged boxes are waiting for your confirmation. It also arrives when the app is closed.</div>'
+      +'<div id="paMsg"></div>'
+      +'<div style="padding:12px;border-radius:10px;border:2px solid '+(on?GRN:"var(--line)")+';font-weight:700;margin-bottom:10px">This device: '+(on?"alerts ON":perm==="denied"?"blocked in the phone settings":"alerts off")+'</div>'
+      +(perm==="denied"?'<div class="meta" style="margin-bottom:10px">Open Settings &gt; Notifications &gt; ALPHA WMS and allow notifications, then try again.</div>':'')
+      +'<div class="row">'+(on?'<button id="paOff" type="button">Turn off on this device</button>':'<button id="paOn" type="button">Turn on alerts on this device</button>')+'<button id="paX" type="button" class="ghost">Close</button></div>'
+      +'<details id="paSet" style="margin-top:14px"'+(showSet||!cfg.vapid?' open':'')+'><summary>Setup (one time)</summary><div style="margin-top:8px">'
+      +'<label class="wide">Web Push key (from Firebase)<input id="paK" autocomplete="off" value="'+esc(cfg.vapid)+'" placeholder="Paste the key pair here"></label>'
+      +'<div class="meta" style="margin:4px 0 10px">Firebase console &gt; Project settings &gt; Cloud Messaging &gt; Web Push certificates &gt; Generate key pair.</div>'
+      +'<label class="wide">Alert server address (for order alerts on picker scanners)<input id="paW" autocomplete="off" value="'+esc(cfg.worker)+'" placeholder="https://alpha-push.yourname.workers.dev"></label>'
+      +'<div class="row" style="margin-top:10px"><button id="paSave" type="button" class="ghost">Save setup</button></div></div></details>');
+    $("paX").onclick=closeSheet;
+    function pm(t,bad){var e=$("paMsg");if(e)e.innerHTML=t?'<div style="padding:10px 12px;border-radius:10px;font-weight:600;margin-bottom:10px;background:'+(bad?"var(--badbg)":"var(--okbg)")+';color:'+(bad?RED:"var(--ok)")+'">'+esc(t)+'</div>':""}
+    function cur(){return {vapid:$("paK").value.trim(),worker:$("paW").value.trim().replace(/\/+$/,"")}}
+    $("paSave").onclick=function(){
+      var c=cur();
+      if(c.worker&&!/^https:\/\//.test(c.worker)){pm("The server address must start with https://",true);return}
+      DB.doc("app/pushcfg").set(c,{merge:true}).then(function(){try{lg("Alert setup saved","")}catch(e){}paDraw(c,true);pm("Setup saved.")}).catch(function(e){pm("Could not save: "+((e&&e.message)||e),true)});
+    };
+    var bn=$("paOn");
+    if(bn)bn.onclick=function(){
+      var key=cur().vapid;
+      if(!key){pm("Paste the Web Push key in Setup first.",true);$("paSet").open=true;return}
+      bn.disabled=true;pm("Working...");
+      // permission request must start right here, inside the tap
+      Notification.requestPermission().then(function(p){
+        if(p!=="granted")throw new Error("Notifications were not allowed. Open Settings > Notifications > ALPHA WMS and allow them.");
+        return navigator.serviceWorker.register("firebase-messaging-sw.js");
+      }).then(function(reg){return navigator.serviceWorker.ready.then(function(r){return r||reg})}).then(function(reg){
+        return firebase.messaging().getToken({vapidKey:key,serviceWorkerRegistration:reg}).then(function(t){return [t,reg]});
+      }).then(function(x){
+        var t=x[0],reg=x[1];if(!t)throw new Error("No alert address was received. Check the Web Push key.");
+        var u=firebase.auth().currentUser,b=DB.batch(),c=cur();
+        b.set(DB.doc("app/"+tokId(t)),{t:t,em:u?u.email:"",at:Date.now(),ua:(navigator.userAgent||"").slice(0,120)});
+        b.set(DB.doc("app/pushcfg"),c,{merge:true});
+        return b.commit().then(function(){
+          setTok(t);try{lg("Phone alerts on","")}catch(e){}
+          try{reg.showNotification("ALPHA WMS",{body:"Phone alerts are on. You will get the daily expiry message here."})}catch(e){}
+          paDraw(c);pm("Alerts are on for this device.");
+        });
+      }).catch(function(e){bn.disabled=false;pm((e&&e.message)||String(e),true)});
+    };
+    var bf=$("paOff");
+    if(bf)bf.onclick=function(){
+      bf.disabled=true;var t=myTok();
+      var p=t?DB.doc("app/"+tokId(t)).delete().catch(function(){}):Promise.resolve();
+      p.then(function(){try{return firebase.messaging().deleteToken()}catch(e){}}).catch(function(){}).then(function(){setTok("");try{lg("Phone alerts off","")}catch(e){}paDraw(cur());pm("Alerts are off for this device.")});
+    };
+  }
+  $("hpush").onclick=pushSheet;
+
   sync();
+})();
+
+// Picker scanner screen (?me=1) and supervisor notifications (finished / more time)
+(function(){
+  var Q=new URLSearchParams(location.search),ME=Q.get("me")==="1";
+  if(Q.get("display")==="1")return;
+  var LSK="alphaPicker",RED2="#e5483b",ORG2="#f0a020",GRN2="#2fbf6b";
+  function ls(k,v){try{if(v===undefined)return localStorage.getItem(k)||"";if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return ""}}
+  function low(s){return String(s||"").trim().toLowerCase()}
+  function ready(){var u=firebase.auth().currentUser;return !!(u&&$("ap")&&!$("ap").hidden&&DB)}
+  // ----- sound + vibration -----
+  var ctx=null;
+  function unlock(){try{var C=window.AudioContext||window.webkitAudioContext;if(C){ctx=ctx||new C();if(ctx.state==="suspended")ctx.resume()}}catch(e){}}
+  ["click","touchstart","keydown"].forEach(function(ev){document.addEventListener(ev,unlock,true)});
+  function beep(n,freq){
+    try{if(ctx){for(var i=0;i<n;i++){var o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*0.28;o.type="square";o.frequency.value=freq||900;o.connect(g);g.connect(ctx.destination);g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.3,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+0.22);o.start(t);o.stop(t+0.25)}}}catch(e){}
+    try{if(navigator.vibrate){var p=[];for(var j=0;j<n;j++){p.push(220);p.push(90)}navigator.vibrate(p)}}catch(e){}
+  }
+  // ----- shared alert settings (Web Push key + alert server address), set once by the manager -----
+  var PCFG={vapid:"",worker:""},cfgOn=false;
+  setInterval(function(){
+    if(cfgOn||!ready())return;cfgOn=true;
+    DB.doc("app/pushcfg").onSnapshot(function(d){var x=d.exists?d.data():{};PCFG={vapid:x.vapid||"",worker:String(x.worker||"").replace(/\/+$/,"")}},function(){});
+  },1000);
+  // supervisor side: ask the alert server to push a message to the picker's scanner
+  window.alphaNotify=function(id,kind){
+    try{
+      if(!PCFG.worker||!firebase.auth().currentUser)return;
+      firebase.auth().currentUser.getIdToken().then(function(tok){
+        return fetch(PCFG.worker+"/notify",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+tok},body:JSON.stringify({id:String(id),kind:kind})});
+      }).then(function(r){if(r&&!r.ok)return r.json().then(function(j){throw new Error(j.error||r.status)})}).catch(function(e){try{warn("Could not alert the picker's scanner: "+((e&&e.message)||e))}catch(x){}});
+    }catch(e){}
+  };
+  function wake(){try{if(navigator.wakeLock)navigator.wakeLock.request("screen").catch(function(){})}catch(e){}}
+
+  // =================== picker scanner ===================
+  if(ME){
+    var sel=ls(LSK),seen={},first=true,alarmed={},resSeen={},note="",noteUntil=0,mode="",confirmFin=false,moreOpen=false,lastKey="";
+    var ov=document.createElement("div");ov.hidden=true;
+    ov.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:90;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 14px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column";
+    ov.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div id="mwho" style="font-size:24px;font-weight:800;overflow-wrap:anywhere"></div><div id="mclk" style="font-size:24px;font-weight:700"></div></div>'
+      +'<div id="mnote"></div><div id="malert"></div><div id="mbody" style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px;margin:10px 0"></div>'
+      +'<div id="mfoot" class="row" style="gap:10px"></div>';
+    document.body.appendChild(ov);
+    var st=document.createElement("style");
+    st.textContent="@keyframes mflash{0%,100%{box-shadow:0 0 0 0 rgba(1,205,255,0)}50%{box-shadow:0 0 0 14px rgba(1,205,255,.55)}}.mnew{animation:mflash .8s 6}#ov_m button{font-size:26px;padding:20px;border-radius:14px;width:100%}";
+    document.head.appendChild(st);ov.id="ov_m";
+    var $m=function(i){return document.getElementById(i)};
+    // ----- order alerts on this scanner (pop up over other apps) -----
+    var PTOK="alphaPickerTok",regBusy=false,regMsg="",lastAl="";
+    function tokId(t){var h=5381,i;for(i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))|0;return "tok_"+(h>>>0).toString(36)+"_"+t.slice(-8).replace(/[^A-Za-z0-9]/g,"x")}
+    function myReg(){try{return JSON.parse(ls(PTOK)||"null")}catch(e){return null}}
+    function canPush(){try{return "serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window&&typeof firebase.messaging==="function"}catch(e){return false}}
+    function unreg(){var r=myReg();ls(PTOK,null);if(r&&r.t&&DB)DB.doc("app/"+tokId(r.t)).delete().catch(function(){})}
+    function drawAlert(){
+      var el=$m("malert");if(!el)return;
+      var r=myReg(),on=!!(r&&r.pk===sel)&&canPush()&&Notification.permission==="granted";
+      var st=!sel?"":!canPush()?"nosup":!PCFG.vapid||!PCFG.worker?"nosetup":on?"on":Notification.permission==="denied"?"denied":"off";
+      var key=st+"|"+regBusy+"|"+regMsg;if(key===lastAl)return;lastAl=key;
+      var h="";
+      if(st==="off")h='<button id="mAl" type="button" style="font-size:20px;padding:14px;margin:8px 0">'+(regBusy?"Working...":"Turn on order alerts")+'</button><div class="meta" style="text-align:center">So you get a pop-up with sound when an order is assigned, even while you use another app.</div>';
+      else if(st==="on")h='<div class="meta" style="text-align:center;margin-top:6px">Order alerts are on</div>';
+      else if(st==="denied")h='<div class="meta" style="text-align:center;color:'+ORG2+';font-weight:700">Alerts are blocked. Allow notifications for this site in the browser settings.</div>';
+      else if(st==="nosup")h='<div class="meta" style="text-align:center">This browser cannot show order alerts. Use Chrome (with Google services) or Firefox.</div>';
+      else if(st==="nosetup")h='<div class="meta" style="text-align:center">Order alerts are not set up yet. Ask your manager (Menu, Phone alerts, Setup).</div>';
+      if(regMsg)h+='<div style="text-align:center;color:'+RED2+';font-weight:700;margin-top:6px">'+esc(regMsg)+'</div>';
+      el.innerHTML=h;
+      var b=$m("mAl");
+      if(b)b.onclick=function(){
+        if(regBusy)return;regBusy=true;regMsg="";lastAl="";drawAlert();
+        Notification.requestPermission().then(function(p){
+          if(p!=="granted")throw new Error("Notifications were not allowed.");
+          return navigator.serviceWorker.register("firebase-messaging-sw.js");
+        }).then(function(){return navigator.serviceWorker.ready}).then(function(reg){
+          return firebase.messaging().getToken({vapidKey:PCFG.vapid,serviceWorkerRegistration:reg})
+        }).then(function(t){
+          if(!t)throw new Error("No alert address received.");
+          var u=firebase.auth().currentUser;
+          return DB.doc("app/"+tokId(t)).set({t:t,pk:sel,pkl:low(sel),em:u?u.email:"",at:Date.now(),ua:(navigator.userAgent||"").slice(0,120)}).then(function(){ls(PTOK,JSON.stringify({t:t,pk:sel}))});
+        }).catch(function(e){regMsg=(e&&e.message)||String(e)}).then(function(){regBusy=false;lastAl="";drawAlert()});
+      };
+    }
+    function roster(){return (S.roster||[]).filter(Boolean)}
+    function mine(){return S.active.filter(function(a){return low(a.name)===low(sel)}).sort(function(x,y){return (x.start+x.mins*60000)-(y.start+y.mins*60000)})}
+    function say(t,ms){note=t;noteUntil=Date.now()+(ms||20000)}
+    function put(id,obj,okMsg){
+      DB.doc("active/"+id).set(obj,{merge:true}).then(function(){if(okMsg)say(okMsg)}).catch(function(e){say("Could not send. "+((e&&e.code==="permission-denied")?"This login is not allowed to do that. Ask your manager to use a Supervisor login on the scanners.":((e&&e.message)||e)),30000);draw(true)});
+    }
+    function pickScreen(){
+      var r=roster();
+      $m("mwho").textContent="Who are you?";
+      $m("mbody").innerHTML=r.length?'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">'+r.map(function(n){return '<button type="button" data-n="'+esc(n)+'">'+esc(n)+'</button>'}).join("")+'</div>':'<div class="empty" style="font-size:22px">No pickers yet. Ask your supervisor to add the pickers first.</div>';
+      $m("mfoot").innerHTML="";
+      Array.prototype.forEach.call($m("mbody").querySelectorAll("[data-n]"),function(b){b.onclick=function(){sel=b.dataset.n;ls(LSK,sel);unlock();beep(1,700);lastKey="";draw(true)}});
+    }
+    function draw(force){
+      if(!ready()){ov.hidden=true;return}
+      ov.hidden=false;
+      $m("mclk").textContent=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+      if(!sel){if(lastKey!=="pick"||force){lastKey="pick";pickScreen()}return}
+      $m("mwho").textContent=sel;
+      var list=mine(),cur=list[0]||null,now=Date.now(),i;
+      // new order / answers
+      var ids={};list.forEach(function(a){ids[a.id]=1;if(!seen[a.id]){seen[a.id]=1;if(!first){beep(3,900);say("New order for you",8000);lastKey=""}}});
+      if(cur&&cur.moreRes){var rk=cur.id+":"+cur.moreRes.at;if(!resSeen[rk]){resSeen[rk]=1;if(!first){beep(cur.moreRes.ok?2:3,cur.moreRes.ok?1000:500);say(cur.moreRes.ok?"Approved: +"+cur.moreRes.n+" min":"Extra time was not approved",20000);lastKey=""}}}
+      first=false;drawAlert();
+      var left=cur?cur.mins*60000-(now-cur.start):0,tot=cur?cur.mins*60000:1,late=left<0,col=late||left<=tot*.2?RED2:left<=tot*.33?ORG2:GRN2;
+      if(cur&&late&&!alarmed[cur.id]){alarmed[cur.id]=1;beep(5,1100)}
+      var key=(cur?cur.id+":"+(cur.more?"m":"")+":"+cur.mins:"none")+"|"+(confirmFin?"c":"")+(moreOpen?"o":"")+"|"+(note&&now<noteUntil?note:"");
+      var nt=note&&now<noteUntil?'<div style="margin:10px 0;padding:14px;border-radius:12px;background:var(--card);border:3px solid '+GRN2+';font-size:22px;font-weight:800;text-align:center">'+esc(note)+'</div>':"";
+      if(key!==lastKey){
+        lastKey=key;$m("mnote").innerHTML=nt;var b="",f="";
+        if(!cur){b='<div style="text-align:center;font-size:30px;font-weight:800;opacity:.85">Waiting for your next order</div><div class="meta" style="text-align:center;font-size:18px">It will appear here as soon as your supervisor assigns it.</div>'}
+        else{
+          b='<div style="text-align:center"><div style="font-size:clamp(22px,6vw,34px);font-weight:700">'+(cur.order?"Order "+esc(cur.order):"")+(cur.boxes?(cur.order?" · ":"")+cur.boxes+" boxes":"")+'</div>'
+            +'<div id="mtm" style="font-size:clamp(70px,24vw,150px);font-weight:900;line-height:1.05"></div><div id="mtl" style="font-size:22px;font-weight:700"></div>'
+            +'<div style="height:14px;border-radius:7px;background:var(--line);margin-top:10px;overflow:hidden"><div id="mbar" style="height:100%"></div></div></div>';
+          if(confirmFin)b+='<div style="text-align:center;font-size:26px;font-weight:800;margin-top:6px">Finished this order?</div><button id="mYes" type="button" style="background:'+GRN2+';color:#04210f">YES, FINISHED</button><button id="mNo" type="button" class="ghost">No, go back</button>';
+          else if(moreOpen)b+='<div style="text-align:center;font-size:24px;font-weight:800;margin-top:6px">How much extra time?</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px"><button type="button" data-more="5">+5</button><button type="button" data-more="10">+10</button><button type="button" data-more="15">+15</button></div><button id="mBack" type="button" class="ghost">Cancel</button>';
+          else if(cur.more)b+='<div style="text-align:center;font-size:22px;font-weight:800;padding:14px;border-radius:12px;border:3px solid '+ORG2+'">Asked for +'+cur.more.mins+' min. Waiting for the supervisor...</div><button id="mCancel" type="button" class="ghost">Cancel my request</button>';
+          else b+='<button id="mFin" type="button" style="background:'+GRN2+';color:#04210f">FINISHED</button><button id="mMore" type="button" style="background:'+ORG2+';color:#2b1a00">I NEED MORE TIME</button>';
+        }
+        $m("mbody").innerHTML=b;
+        f='<button id="mChg" type="button" class="ghost" style="width:auto;font-size:16px;padding:10px 14px">Not '+esc(sel)+'?</button><button id="mOut" type="button" class="ghost" style="width:auto;font-size:16px;padding:10px 14px">Sign out</button>';
+        $m("mfoot").innerHTML=f;
+        var q=function(id){return $m(id)};
+        if(q("mFin"))q("mFin").onclick=function(){confirmFin=true;lastKey="";draw(true)};
+        if(q("mNo"))q("mNo").onclick=function(){confirmFin=false;lastKey="";draw(true)};
+        if(q("mYes"))q("mYes").onclick=function(){confirmFin=false;var id=cur.id;put(id,{done:{at:Date.now(),by:me(),p:sel}},"Finished. Your supervisor was told.");lastKey=""};
+        if(q("mMore"))q("mMore").onclick=function(){moreOpen=true;lastKey="";draw(true)};
+        if(q("mBack"))q("mBack").onclick=function(){moreOpen=false;lastKey="";draw(true)};
+        Array.prototype.forEach.call($m("mbody").querySelectorAll("[data-more]"),function(bt){bt.onclick=function(){var n=+bt.dataset.more;moreOpen=false;put(cur.id,{more:{mins:n,at:Date.now(),p:sel,by:me()},moreRes:null},"Request sent: +"+n+" min");lastKey=""}});
+        if(q("mCancel"))q("mCancel").onclick=function(){put(cur.id,{more:null});lastKey=""};
+        q("mChg").onclick=function(){if(confirm("Choose a different picker on this scanner?")){unreg();sel="";ls(LSK,null);lastKey="";draw(true)}};
+        q("mOut").onclick=function(){if(confirm("Sign out of this scanner?"))firebase.auth().signOut().then(function(){location.reload()})};
+      }
+      if(cur&&$m("mtm")){
+        $m("mtm").textContent=(late?"+":"")+fmt(left);$m("mtm").style.color=col;
+        $m("mtl").textContent=late?"Time is over":"Time left";$m("mtl").style.color=col;
+        $m("mbar").style.width=Math.min(100,Math.max(0,(now-cur.start)/tot*100))+"%";$m("mbar").style.background=col;
+      }
+    }
+    setInterval(function(){draw(false)},1000);draw(true);
+    wake();document.addEventListener("visibilitychange",function(){if(!document.hidden)wake()});
+    setTimeout(function(){location.reload()},6*60*60*1000);
+    return;
+  }
+
+  // =================== supervisor notifications ===================
+  var box=document.createElement("div");
+  box.style.cssText="position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:8px;right:8px;z-index:101;display:flex;flex-direction:column;gap:8px;max-width:560px;margin:0 auto;pointer-events:none";
+  document.body.appendChild(box);
+  var known={},lastKeys="__";
+  function finishDone(a){
+    if(!DB||fin[a.id])return;fin[a.id]=1;
+    var o=Object.assign({},a),d=o.done||{};delete o.done;delete o.more;delete o.moreRes;
+    o.end=d.at||Date.now();o.doneBy=d.by||me();o.fin="picker";o.seenBy=me();
+    var ref=DB.doc("hist/"+dayStr(new Date(o.end))+"_"+hk(o.name));
+    ref.get().then(function(s){var it=s.exists?(s.data().items||[]).slice():[];it.push(o);return ref.set({day:dayStr(new Date(o.end)),name:o.name,items:it})}).then(function(){return DB.doc("active/"+a.id).delete()}).catch(function(e){delete fin[a.id];dbe(e)});
+  }
+  function answer(a,n){
+    var m=a.more||{};
+    if(n){var nm2=a.mins+n,upd={mins:nm2,more:null,moreRes:{ok:true,n:n,at:Date.now(),by:me()}};if(nm2*60000>CFG.lead*60000)upd.warnAt=a.start+nm2*60000-CFG.lead*60000;
+      DB.doc("active/"+a.id).set(upd,{merge:true}).then(function(){window.alphaNotify(a.id,"more");try{lg("Extra time approved",a.name+" +"+n+" min"+(a.order?" · order #"+a.order:""))}catch(e){}}).catch(dbe)}
+    else{DB.doc("active/"+a.id).set({more:null,moreRes:{ok:false,at:Date.now(),by:me()}},{merge:true}).then(function(){window.alphaNotify(a.id,"more");try{lg("Extra time declined",a.name+(a.order?" · order #"+a.order:""))}catch(e){}}).catch(dbe)}
+  }
+  function paintN(){
+    var u=firebase.auth().currentUser;
+    if(!ready()||ROLE==="display"){box.innerHTML="";lastKeys="__";return}
+    var items=[];
+    (S.doneQ||[]).forEach(function(a){items.push({k:"d"+a.id,t:"d",a:a})});
+    S.active.forEach(function(a){if(a.more&&a.more.at)items.push({k:"m"+a.id+":"+a.more.at,t:"m",a:a})});
+    var keys=items.map(function(x){return x.k}).join(",");
+    if(keys===lastKeys)return;lastKeys=keys;
+    var fresh=false;items.forEach(function(x){if(!known[x.k]){known[x.k]=1;fresh=true}});
+    if(fresh){beep(3,900);}
+    box.innerHTML=items.map(function(x,i){
+      var a=x.a,nm=esc(a.name),od=(a.order?" · order "+esc(a.order):"")+(a.boxes?" · "+a.boxes+" boxes":"");
+      if(x.t==="d"){
+        var d=a.done||{},spent=Math.max(0,(d.at||Date.now())-a.start),allowed=a.mins*60000,diff=allowed-spent;
+        return '<div style="pointer-events:auto;background:var(--card);color:var(--ink);border-left:8px solid '+GRN2+';border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.35)"><div style="font-weight:800;font-size:18px">'+nm+' finished'+od+'</div><div class="meta">Took '+fmt(spent)+' of '+a.mins+' min · '+(diff>=0?fmt(diff)+" early":fmt(-diff)+" over")+'</div><div class="row" style="margin-top:8px"><button type="button" data-ok="'+i+'">OK, saved</button></div></div>';
+      }
+      var m=a.more,left=a.mins*60000-(m.at-a.start);
+      return '<div style="pointer-events:auto;background:var(--card);color:var(--ink);border-left:8px solid '+ORG2+';border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.35)"><div style="font-weight:800;font-size:18px">'+nm+' asks for +'+m.mins+' min'+od+'</div><div class="meta">'+(left<0?"Already "+fmt(-left)+" over time":fmt(left)+" was left")+' when asked</div><div class="row" style="margin-top:8px;flex-wrap:wrap"><button type="button" data-yes="'+i+'">Approve +'+m.mins+'</button><button type="button" class="ghost" data-no="'+i+'">Decline</button></div></div>';
+    }).join("");
+    Array.prototype.forEach.call(box.querySelectorAll("[data-ok]"),function(b){b.onclick=function(){finishDone(items[+b.dataset.ok].a)}});
+    Array.prototype.forEach.call(box.querySelectorAll("[data-yes]"),function(b){b.onclick=function(){var a=items[+b.dataset.yes].a;answer(a,a.more.mins)}});
+    Array.prototype.forEach.call(box.querySelectorAll("[data-no]"),function(b){b.onclick=function(){answer(items[+b.dataset.no].a,0)}});
+  }
+  setInterval(paintN,700);
 })();
 </script>
 </body>
