@@ -319,6 +319,8 @@ rr();render();stats();setInterval(render,1000);
         var cd=c.exists?c.data():{};
         if(cd.active===false){noAccess(u,"This company account is suspended. Please contact support.");return}
         CID=m.cid;ROLE=m.role||"staff";COMP=cd;CFG=Object.assign({},CFG,cd.settings||{});
+        window.SCANNER=!!m.scanner;window.SCANNER_PICKER=m.scanner?(m.picker||""):"";
+        if(m.scanner&&new URLSearchParams(location.search).get("me")!=="1"){var q2=new URLSearchParams(location.search);q2.set("me","1");q2.delete("display");location.replace(location.pathname+"?"+q2.toString().replace(/%40/g,"@"));return}
         applyBrand();window.dispatchEvent(new Event("rolechange"));go();view("app");
       });
     }).catch(function(){noAccess(u,na)});
@@ -565,21 +567,23 @@ rr();render();stats();setInterval(render,1000);
   $("so").parentNode.insertAdjacentElement("afterend",w);
   var md=document.createElement("div");md.hidden=true;
   md.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))";
-  md.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">Staff access</h1><button id="sx" type="button" class="ghost">Close</button></div><div class="meta" style="margin-bottom:8px">Type the full name and email of the person, then tap Give access. They open the app, tap "First time? Create my password", choose a password and verify their email. Remove someone to lock them out immediately.</div><input id="sn" placeholder="Full name (first and last name)" autocomplete="off" style="margin-bottom:8px"><input id="sm" type="email" placeholder="email@example.com" autocomplete="off"><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sd" type="checkbox" style="width:auto"> Display tablet only (read-only, for the pickers)</label><div class="row"><button id="sa" type="button">Give access</button></div><div id="sl"></div></div>';
+  md.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">Staff access</h1><button id="sx" type="button" class="ghost">Close</button></div><div class="meta" style="margin-bottom:8px">Type the full name and email of the person, then tap Give access. They open the app, tap "First time? Create my password", choose a password and verify their email. Remove someone to lock them out immediately.</div><input id="sn" placeholder="Full name (first and last name)" autocomplete="off" style="margin-bottom:8px"><input id="sm" type="email" placeholder="email@example.com" autocomplete="off"><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sd" type="checkbox" style="width:auto"> Display tablet only (read-only, for the pickers)</label><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sp" type="checkbox" style="width:auto"> Picker scanner login (shows only the picker screen)</label><select id="spn" hidden style="margin-bottom:8px"></select><div class="row"><button id="sa" type="button">Give access</button></div><div id="sl"></div></div>';
   document.body.appendChild(md);
-  function lab(r){return r==="owner"?"Manager":r==="display"?"Display tablet":"Supervisor"}
+  function lab(r,x){return x&&x.scanner?"Picker scanner"+(x.picker?" · "+x.picker:" · picker chooses"):r==="owner"?"Manager":r==="display"?"Display tablet":"Supervisor"}
+  function fillSp(){var sel=$("spn"),cur=sel.value,h='<option value="">Any picker (the picker chooses on the scanner)</option>';(S.roster||[]).forEach(function(n){h+='<option value="'+esc(n)+'">Only '+esc(n)+'</option>'});sel.innerHTML=h;sel.value=cur}
+  setTimeout(function(){$("sp").onchange=function(){$("spn").hidden=!this.checked;if(this.checked){fillSp();$("sd").checked=false}};$("sd").onchange=function(){if(this.checked){$("sp").checked=false;$("spn").hidden=true}}},0);
   function draw(){
-    $("sl").innerHTML=list.length?list.map(function(x){return '<div class="h"><span><b>'+esc(x.name||"(no name yet)")+'</b><br><span class="meta">'+esc(x.email)+' · '+lab(x.role)+'</span></span>'+(x.role==="owner"?'':'<button class="ghost" data-e="'+esc(x.email)+'" type="button">Remove</button>')+'</div>'}).join(""):'<div class="empty">No one added yet.</div>';
+    $("sl").innerHTML=list.length?list.map(function(x){return '<div class="h"><span><b>'+esc(x.name||"(no name yet)")+'</b><br><span class="meta">'+esc(x.email)+' · '+lab(x.role,x)+'</span></span>'+(x.role==="owner"?'':'<button class="ghost" data-e="'+esc(x.email)+'" type="button">Remove</button>')+'</div>'}).join(""):'<div class="empty">No one added yet.</div>';
   }
   $("sa").onclick=function(){
     var em=$("sm").value.trim().toLowerCase(),nm=$("sn").value.trim(),u=firebase.auth().currentUser;
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){alert("Type a valid email address.");return}
     if(!nm){alert("Type the full name (first and last name).");return}
     if(!RAW||!u||!CID)return;
-    var role=$("sd").checked?"display":"staff",b=RAW.batch();
-    b.set(RAW.doc("members/"+em),{email:em,cid:CID,role:role,name:nm,by:u.email,at:Date.now()});
-    b.set(DB.doc("people/"+em),{email:em,name:nm,role:role});
-    b.commit().then(function(){lg("Gave access / set name",nm+" · "+em+(role==="display"?" (display only)":""));$("sm").value="";$("sn").value="";$("sd").checked=false}).catch(function(e){
+    var role=$("sd").checked?"display":"staff",b=RAW.batch(),sc=$("sp").checked,pk=sc?$("spn").value:"",ex=sc?{scanner:true,picker:pk}:{};
+    b.set(RAW.doc("members/"+em),Object.assign({email:em,cid:CID,role:role,name:nm,by:u.email,at:Date.now()},ex));
+    b.set(DB.doc("people/"+em),Object.assign({email:em,name:nm,role:role},ex));
+    b.commit().then(function(){lg("Gave access / set name",nm+" · "+em+(role==="display"?" (display only)":"")+(sc?" (picker scanner"+(pk?" for "+pk:"")+")":""));$("sm").value="";$("sn").value="";$("sd").checked=false;$("sp").checked=false;$("spn").hidden=true}).catch(function(e){
       if(e&&e.code==="permission-denied")alert("This email cannot be added. It may already belong to another company, or it is a manager account.");else dbe(e);
     });
   };
@@ -2680,7 +2684,7 @@ PLATFORM="zanganam88@gmail.com";
 
   // =================== picker scanner ===================
   if(ME){
-    var sel=ls(LSK),seen={},first=true,alarmed={},resSeen={},note="",noteUntil=0,mode="",confirmFin=false,moreOpen=false,lastKey="";
+    var sel=ls(LSK),pendSeen={},seen={},first=true,alarmed={},resSeen={},note="",noteUntil=0,mode="",confirmFin=false,moreOpen=false,lastKey="";
     var ov=document.createElement("div");ov.hidden=true;
     ov.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:90;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 14px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column";
     ov.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div id="mwho" style="font-size:24px;font-weight:800;overflow-wrap:anywhere"></div><div id="mclk" style="font-size:24px;font-weight:700"></div></div>'
@@ -2742,20 +2746,29 @@ PLATFORM="zanganam88@gmail.com";
       if(!ready()){ov.hidden=true;return}
       ov.hidden=false;
       $m("mclk").textContent=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+      if(window.SCANNER_PICKER&&sel!==window.SCANNER_PICKER){sel=window.SCANNER_PICKER;ls(LSK,sel);lastKey=""}
       if(!sel){if(lastKey!=="pick"||force){lastKey="pick";pickScreen()}return}
       $m("mwho").textContent=sel;
       var list=mine(),cur=list[0]||null,now=Date.now(),i;
       // new order / answers
       var ids={};list.forEach(function(a){ids[a.id]=1;if(!seen[a.id]){seen[a.id]=1;if(!first){beep(3,900);say("New order for you",8000);lastKey=""}}});
       if(cur&&cur.moreRes){var rk=cur.id+":"+cur.moreRes.at;if(!resSeen[rk]){resSeen[rk]=1;if(!first){beep(cur.moreRes.ok?2:3,cur.moreRes.ok?1000:500);say(cur.moreRes.ok?"Approved: +"+cur.moreRes.n+" min":"Extra time was not approved",20000);lastKey=""}}}
+      var pend=(S.doneQ||[]).filter(function(a){return low(a.name)===low(sel)})[0]||null;
+      if(pend)pendSeen[pend.id]=1;
+      Object.keys(pendSeen).forEach(function(k){
+        var still=S.active.some(function(a){return String(a.id)===k})||(S.doneQ||[]).some(function(a){return String(a.id)===k});
+        if(!still){delete pendSeen[k];if(!first){beep(2,1000);say("Confirmed by your supervisor. Well done!",20000);lastKey=""}}
+      });
+      if(cur&&cur.doneRes){var dk="d"+cur.id+":"+cur.doneRes.at;if(!resSeen[dk]){resSeen[dk]=1;if(!first){beep(3,500);say("Not finished yet. Your supervisor says to keep picking.",30000);lastKey=""}}}
       first=false;drawAlert();
       var left=cur?cur.mins*60000-(now-cur.start):0,tot=cur?cur.mins*60000:1,late=left<0,col=late||left<=tot*.2?RED2:left<=tot*.33?ORG2:GRN2;
       if(cur&&late&&!alarmed[cur.id]){alarmed[cur.id]=1;beep(5,1100)}
-      var key=(cur?cur.id+":"+(cur.more?"m":"")+":"+cur.mins:"none")+"|"+(confirmFin?"c":"")+(moreOpen?"o":"")+"|"+(note&&now<noteUntil?note:"");
+      var key=(cur?cur.id+":"+(cur.more?"m":"")+":"+cur.mins:pend?"pend:"+pend.id:"none")+"|"+(confirmFin?"c":"")+(moreOpen?"o":"")+"|"+(note&&now<noteUntil?note:"");
       var nt=note&&now<noteUntil?'<div style="margin:10px 0;padding:14px;border-radius:12px;background:var(--card);border:3px solid '+GRN2+';font-size:22px;font-weight:800;text-align:center">'+esc(note)+'</div>':"";
       if(key!==lastKey){
         lastKey=key;$m("mnote").innerHTML=nt;var b="",f="";
-        if(!cur){b='<div style="text-align:center;font-size:30px;font-weight:800;opacity:.85">Waiting for your next order</div><div class="meta" style="text-align:center;font-size:18px">It will appear here as soon as your supervisor assigns it.</div>'}
+        if(!cur&&pend){var spent=Math.max(0,((pend.done&&pend.done.at)||now)-pend.start);b='<div style="text-align:center"><div style="font-size:clamp(22px,6vw,34px);font-weight:700">'+(pend.order?"Order "+esc(pend.order):"")+(pend.boxes?(pend.order?" · ":"")+pend.boxes+" boxes":"")+'</div><div style="font-size:clamp(50px,16vw,110px);font-weight:900;line-height:1.1;color:'+GRN2+'">'+fmt(spent)+'</div><div style="font-size:22px;font-weight:700">You pressed Finished</div></div><div style="text-align:center;font-size:22px;font-weight:800;padding:14px;border-radius:12px;border:3px solid '+ORG2+'">Waiting for your supervisor to confirm...</div><button id="mUndo" type="button" class="ghost">Not finished, go back</button>'}
+        else if(!cur){b='<div style="text-align:center;font-size:30px;font-weight:800;opacity:.85">Waiting for your next order</div><div class="meta" style="text-align:center;font-size:18px">It will appear here as soon as your supervisor assigns it.</div>'}
         else{
           b='<div style="text-align:center"><div style="font-size:clamp(22px,6vw,34px);font-weight:700">'+(cur.order?"Order "+esc(cur.order):"")+(cur.boxes?(cur.order?" · ":"")+cur.boxes+" boxes":"")+'</div>'
             +'<div id="mtm" style="font-size:clamp(70px,24vw,150px);font-weight:900;line-height:1.05"></div><div id="mtl" style="font-size:22px;font-weight:700"></div>'
@@ -2766,17 +2779,18 @@ PLATFORM="zanganam88@gmail.com";
           else b+='<button id="mFin" type="button" style="background:'+GRN2+';color:#04210f">FINISHED</button><button id="mMore" type="button" style="background:'+ORG2+';color:#2b1a00">I NEED MORE TIME</button>';
         }
         $m("mbody").innerHTML=b;
-        f='<button id="mChg" type="button" class="ghost" style="width:auto;font-size:16px;padding:10px 14px">Not '+esc(sel)+'?</button><button id="mOut" type="button" class="ghost" style="width:auto;font-size:16px;padding:10px 14px">Sign out</button>';
+        f=(window.SCANNER_PICKER?'':'<button id="mChg" type="button" class="ghost" style="width:auto;font-size:16px;padding:10px 14px">Not '+esc(sel)+'?</button>')+'<button id="mOut" type="button" class="ghost" style="width:auto;font-size:16px;padding:10px 14px">Sign out</button>';
         $m("mfoot").innerHTML=f;
         var q=function(id){return $m(id)};
+        if(q("mUndo"))q("mUndo").onclick=function(){put(pend.id,{done:null,doneRes:null},"Back to picking. The timer keeps running.");lastKey=""};
         if(q("mFin"))q("mFin").onclick=function(){confirmFin=true;lastKey="";draw(true)};
         if(q("mNo"))q("mNo").onclick=function(){confirmFin=false;lastKey="";draw(true)};
-        if(q("mYes"))q("mYes").onclick=function(){confirmFin=false;var id=cur.id;put(id,{done:{at:Date.now(),by:me(),p:sel}},"Finished. Your supervisor was told.");lastKey=""};
+        if(q("mYes"))q("mYes").onclick=function(){confirmFin=false;var id=cur.id;put(id,{done:{at:Date.now(),by:me(),p:sel},doneRes:null},"Sent. Waiting for your supervisor to confirm.");lastKey=""};
         if(q("mMore"))q("mMore").onclick=function(){moreOpen=true;lastKey="";draw(true)};
         if(q("mBack"))q("mBack").onclick=function(){moreOpen=false;lastKey="";draw(true)};
         Array.prototype.forEach.call($m("mbody").querySelectorAll("[data-more]"),function(bt){bt.onclick=function(){var n=+bt.dataset.more;moreOpen=false;put(cur.id,{more:{mins:n,at:Date.now(),p:sel,by:me()},moreRes:null},"Request sent: +"+n+" min");lastKey=""}});
         if(q("mCancel"))q("mCancel").onclick=function(){put(cur.id,{more:null});lastKey=""};
-        q("mChg").onclick=function(){if(confirm("Choose a different picker on this scanner?")){unreg();sel="";ls(LSK,null);lastKey="";draw(true)}};
+        if(q("mChg"))q("mChg").onclick=function(){if(confirm("Choose a different picker on this scanner?")){unreg();sel="";ls(LSK,null);lastKey="";draw(true)}};
         q("mOut").onclick=function(){if(confirm("Sign out of this scanner?"))firebase.auth().signOut().then(function(){location.reload()})};
       }
       if(cur&&$m("mtm")){
@@ -2799,9 +2813,14 @@ PLATFORM="zanganam88@gmail.com";
   function finishDone(a){
     if(!DB||fin[a.id])return;fin[a.id]=1;
     var o=Object.assign({},a),d=o.done||{};delete o.done;delete o.more;delete o.moreRes;
-    o.end=d.at||Date.now();o.doneBy=d.by||me();o.fin="picker";o.seenBy=me();
+    o.end=d.at||Date.now();o.pickerBy=d.by||"";o.doneBy=me();o.fin="picker";o.seenBy=me();delete o.doneRes;delete o.note;delete o.warnAt;
     var ref=DB.doc("hist/"+dayStr(new Date(o.end))+"_"+hk(o.name));
     ref.get().then(function(s){var it=s.exists?(s.data().items||[]).slice():[];it.push(o);return ref.set({day:dayStr(new Date(o.end)),name:o.name,items:it})}).then(function(){return DB.doc("active/"+a.id).delete()}).catch(function(e){delete fin[a.id];dbe(e)});
+  }
+  function notDone(a){
+    var upd={done:null,doneRes:{ok:false,at:Date.now(),by:me()},note:{title:"Not finished yet",body:(a.order?"Order "+a.order+" · ":"")+"your supervisor says to keep picking",at:Date.now()}};
+    if(a.mins*60000>CFG.lead*60000)upd.warnAt=Math.max(Date.now(),a.start+a.mins*60000-CFG.lead*60000);
+    DB.doc("active/"+a.id).set(upd,{merge:true}).then(function(){window.alphaNotify(a.id,"note");try{lg("Finish not confirmed, timer continues",a.name+(a.order?" · order #"+a.order:""))}catch(e){}}).catch(dbe);
   }
   function answer(a,n){
     var m=a.more||{};
@@ -2823,12 +2842,13 @@ PLATFORM="zanganam88@gmail.com";
       var a=x.a,nm=esc(a.name),od=(a.order?" · order "+esc(a.order):"")+(a.boxes?" · "+a.boxes+" boxes":"");
       if(x.t==="d"){
         var d=a.done||{},spent=Math.max(0,(d.at||Date.now())-a.start),allowed=a.mins*60000,diff=allowed-spent;
-        return '<div style="pointer-events:auto;background:var(--card);color:var(--ink);border-left:8px solid '+GRN2+';border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.35)"><div style="font-weight:800;font-size:18px">'+nm+' finished'+od+'</div><div class="meta">Took '+fmt(spent)+' of '+a.mins+' min · '+(diff>=0?fmt(diff)+" early":fmt(-diff)+" over")+'</div><div class="row" style="margin-top:8px"><button type="button" data-ok="'+i+'">OK, saved</button></div></div>';
+        return '<div style="pointer-events:auto;background:var(--card);color:var(--ink);border-left:8px solid '+GRN2+';border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.35)"><div style="font-weight:800;font-size:18px">'+nm+' says finished'+od+'</div><div class="meta">Took '+fmt(spent)+' of '+a.mins+' min · '+(diff>=0?fmt(diff)+" early":fmt(-diff)+" over")+' · please check it</div><div class="row" style="margin-top:8px;flex-wrap:wrap"><button type="button" data-ok="'+i+'">Confirm finished</button><button type="button" class="ghost" data-nf="'+i+'">Not finished</button></div></div>';
       }
       var m=a.more,left=a.mins*60000-(m.at-a.start);
       return '<div style="pointer-events:auto;background:var(--card);color:var(--ink);border-left:8px solid '+ORG2+';border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.35)"><div style="font-weight:800;font-size:18px">'+nm+' asks for +'+m.mins+' min'+od+'</div><div class="meta">'+(left<0?"Already "+fmt(-left)+" over time":fmt(left)+" was left")+' when asked</div><div class="row" style="margin-top:8px;flex-wrap:wrap"><button type="button" data-yes="'+i+'">Approve +'+m.mins+'</button><button type="button" class="ghost" data-no="'+i+'">Decline</button></div></div>';
     }).join("");
     Array.prototype.forEach.call(box.querySelectorAll("[data-ok]"),function(b){b.onclick=function(){finishDone(items[+b.dataset.ok].a)}});
+    Array.prototype.forEach.call(box.querySelectorAll("[data-nf]"),function(b){b.onclick=function(){notDone(items[+b.dataset.nf].a)}});
     Array.prototype.forEach.call(box.querySelectorAll("[data-yes]"),function(b){b.onclick=function(){var a=items[+b.dataset.yes].a;answer(a,a.more.mins)}});
     Array.prototype.forEach.call(box.querySelectorAll("[data-no]"),function(b){b.onclick=function(){answer(items[+b.dataset.no].a,0)}});
   }
