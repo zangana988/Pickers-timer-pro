@@ -2697,10 +2697,10 @@ PLATFORM="zanganam88@gmail.com";
     try{if(navigator.vibrate){var p=[];for(var j=0;j<n;j++){p.push(220);p.push(90)}navigator.vibrate(p)}}catch(e){}
   }
   // ----- shared alert settings (Web Push key + alert server address), set once by the manager -----
-  var PCFG={vapid:"",worker:""},cfgOn=false,PINS={};
+  var PCFG={vapid:"",worker:""},cfgOn=false,PINS={},pinsLoaded=false,OKK="alphaPickerOk";
   setInterval(function(){
     if(cfgOn||!ready())return;cfgOn=true;
-    DB.doc("app/pins").onSnapshot(function(d){PINS=d.exists?(d.data().h||{}):{}},function(){});
+    DB.doc("app/pins").onSnapshot(function(d){PINS=d.exists?(d.data().h||{}):{};pinsLoaded=true},function(){});
     DB.doc("app/pushcfg").onSnapshot(function(d){var x=d.exists?d.data():{};PCFG={vapid:x.vapid||"",worker:String(x.worker||"").replace(/\/+$/,"")}},function(){});
   },1000);
   // supervisor side: ask the alert server to push a message to the picker's scanner
@@ -2775,7 +2775,7 @@ PLATFORM="zanganam88@gmail.com";
       Array.prototype.forEach.call($m("mbody").querySelectorAll("[data-n]"),function(b){b.onclick=function(){
         unlock();var n=b.dataset.n;
         if(PINS[window.alphaPinKey(n)]){pinFor=n;pinBuf="";pinMsg="";lastKey="";draw(true)}
-        else{sel=n;ls(LSK,sel);beep(1,700);lastKey="";draw(true)}
+        else{sel=n;ls(LSK,sel);ls(OKK,"");beep(1,700);lastKey="";draw(true)}
       }});
     }
     function pinScreen(){
@@ -2794,7 +2794,7 @@ PLATFORM="zanganam88@gmail.com";
         if(pinBuf.length===4){
           var nm=pinFor,p=pinBuf;
           window.alphaPinHash(nm,p).then(function(h){
-            if(h===PINS[window.alphaPinKey(nm)]){sel=nm;ls(LSK,sel);pinFor="";pinBuf="";pinMsg="";pinFails=0;beep(1,900)}
+            if(h===PINS[window.alphaPinKey(nm)]){sel=nm;ls(LSK,sel);ls(OKK,h);pinFor="";pinBuf="";pinMsg="";pinFails=0;beep(1,900)}
             else{pinBuf="";pinFails++;pinMsg="Wrong PIN";beep(2,400);if(pinFails>=5){pinLock=Date.now()+30000;pinFails=0;pinMsg="Too many tries. Wait 30 seconds."}}
             lastKey="";draw(true);
           });
@@ -2808,6 +2808,11 @@ PLATFORM="zanganam88@gmail.com";
       ov.hidden=false;
       $m("mclk").textContent=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
       if(window.SCANNER_PICKER&&sel!==window.SCANNER_PICKER){sel=window.SCANNER_PICKER;ls(LSK,sel);lastKey=""}
+      if(sel&&!window.SCANNER_PICKER&&pinsLoaded){
+        // a PIN was set or changed after this picker was chosen: ask for it again
+        var need=PINS[window.alphaPinKey(sel)]||"";
+        if(need&&ls(OKK)!==need){pinFor=sel;pinBuf="";pinMsg="";sel="";ls(LSK,null);lastKey=""}
+      }
       if(!sel){
         if($m("malert")&&$m("malert").innerHTML){$m("malert").innerHTML="";lastAl=""}
         if(pinFor){var pk2="pin:"+pinFor+":"+pinBuf.length+":"+pinMsg;if(lastKey!==pk2||force){lastKey=pk2;pinScreen()}return}
