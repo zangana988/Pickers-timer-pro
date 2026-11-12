@@ -2720,7 +2720,7 @@ PLATFORM="zanganam88@gmail.com";
     var ov=document.createElement("div");ov.hidden=true;
     ov.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:90;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 14px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column";
     ov.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div id="mwho" style="font-size:24px;font-weight:800;overflow-wrap:anywhere"></div><div id="mclk" style="font-size:24px;font-weight:700"></div></div>'
-      +'<div id="mnote"></div><div id="malert"></div><div id="mbody" style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px;margin:10px 0"></div>'
+      +'<div id="mtop" style="margin-top:6px"></div><div id="mnote"></div><div id="malert"></div><div id="mbody" style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px;margin:10px 0"></div>'
       +'<div id="mfoot" class="row" style="gap:10px"></div>';
     document.body.appendChild(ov);
     var st=document.createElement("style");
@@ -2814,10 +2814,17 @@ PLATFORM="zanganam88@gmail.com";
         if(need&&ls(OKK)!==need){pinFor=sel;pinBuf="";pinMsg="";sel="";ls(LSK,null);lastKey=""}
       }
       if(!sel){
+        $m("mtop").dataset.on="";$m("mtop").innerHTML="";
         if($m("malert")&&$m("malert").innerHTML){$m("malert").innerHTML="";lastAl=""}
         if(pinFor){var pk2="pin:"+pinFor+":"+pinBuf.length+":"+pinMsg;if(lastKey!==pk2||force){lastKey=pk2;pinScreen()}return}
         if(lastKey!=="pick"||force){lastKey="pick";pickScreen()}return}
       $m("mwho").textContent=sel;
+      var tp=$m("mtop"),want=window.SCANNER_PICKER?"":"1";
+      if(tp.dataset.on!==want){
+        tp.dataset.on=want;
+        tp.innerHTML=want?'<button id="mTopChg" type="button" class="ghost" style="font-size:18px;padding:10px 14px;width:auto">Wrong name? Choose again</button>':"";
+        if(want)$m("mTopChg").onclick=function(){if(confirm("Choose a different picker on this scanner?")){unreg();sel="";ls(LSK,null);ls(OKK,"");pinFor="";pinBuf="";lastKey="";draw(true)}};
+      }
       var list=mine(),cur=list[0]||null,now=Date.now(),i;
       // new order / answers
       var ids={};list.forEach(function(a){ids[a.id]=1;if(!seen[a.id]){seen[a.id]=1;if(!first){beep(3,900);say("New order for you",8000);lastKey=""}}});
