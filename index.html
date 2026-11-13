@@ -2938,9 +2938,10 @@ PLATFORM="zanganam88@gmail.com";
     out.push(face("f",0,-HS/2,0,PL+o,HS,PDp+o,wrap));out.push(face("b",0,-HS/2,0,PL+o,HS,PDp+o,wrap));
     out.push(face("r",0,-HS/2,0,PL+o,HS,PDp+o,wrap));out.push(face("l",0,-HS/2,0,PL+o,HS,PDp+o,wrap));
     // ---- pallet ----
+    var DK=isEur?2.2:2.5,BL=isEur?10:9.7,BM=2.2;      // deck board, block, bottom board thickness (cm)
+    if(isEur){
     var wood=isEur?["#dcb98c","#c9a373","#b58f5f"]:["#c7a06c","#b38b58","#9d7746"],
         grain=function(c){return 'repeating-linear-gradient(90deg,rgba(90,60,25,.10) 0 2px,rgba(0,0,0,0) 2px 7px),'+c};
-    var DK=2.2,BL=10,BM=2.2;                          // deck board, block, bottom board thickness (cm)
     function part(x,y,z,w,h,d,tops,fb){               // y = top of the part (cm below the carton stack)
       var cy=y+h/2;
       out.push(face("f",x,cy,z,w,h,d,grain(wood[0]),'border:1px solid rgba(70,45,18,.55);box-sizing:border-box'));
@@ -2956,9 +2957,32 @@ PLATFORM="zanganam88@gmail.com";
     bx.forEach(function(x){part(x,DK+BL,0,14.5,BM,PDp,false)});                           // bottom boards
     // EUR brand mark on the front middle block
     if(isEur)out.push(F('width:'+f1(10)+'px;height:'+f1(5)+'px;color:#4a2f12;font:900 '+Math.max(5,f1(3.2))+'px/'+f1(5)+'px sans-serif;text-align:center;letter-spacing:.5px','translate3d('+f1(-5)+'px,'+f1(DK+2)+'px,'+(f1(PDp/2-7.5+7.5)+0.5)+'px)').replace('></div>','>EUR</div>'));
+    }else{
+    // ---- block pallet 100 x 120: closed heavy deck, 9 chunky blocks with knots, 3 bottom boards, HT stamp ----
+    var sh=function(h,k){var n=parseInt(h.slice(1),16);return 'rgb('+Math.min(255,Math.round((n>>16&255)*k))+','+Math.min(255,Math.round((n>>8&255)*k))+','+Math.min(255,Math.round((n&255)*k))+')'},
+        hs=function(n){var q=Math.sin(n*127.1+311.7)*43758.5453;return q-Math.floor(q)},
+        gr=function(c,pl){return (pl?'':'repeating-linear-gradient(90deg,rgba(80,52,20,.16) 0 1px,rgba(0,0,0,0) 1px 4px),repeating-linear-gradient(90deg,rgba(255,236,205,.11) 0 3px,rgba(0,0,0,0) 3px 10px),')+c},
+        eb='border:1px solid rgba(58,36,13,.62);box-sizing:border-box';
+    function bpart(x,y,z,w,h,d,base,o){
+      o=o||{};var cy=y+h/2,ao=o.ao?'linear-gradient(180deg,rgba(0,0,0,.46),rgba(0,0,0,0) 36%,rgba(0,0,0,0) 70%,rgba(0,0,0,.30)),':'',
+        kn=o.knot?'radial-gradient(ellipse 24% 17% at '+Math.round(o.knot[0])+'% '+Math.round(o.knot[1])+'%,rgba(62,35,12,.75),rgba(62,35,12,.28) 62%,rgba(62,35,12,0)),':'';
+      out.push(face("f",x,cy,z,w,h,d,ao+kn+gr(sh(base,1),o.pl),eb));
+      out.push(face("b",x,cy,z,w,h,d,ao+gr(sh(base,.86),o.pl),eb));
+      out.push(face("r",x,cy,z,w,h,d,ao+gr(sh(base,.72),o.pl),eb));
+      out.push(face("l",x,cy,z,w,h,d,ao+gr(sh(base,.78),o.pl),eb));
+      if(o.top)out.push(face("t",x,cy,z,w,h,d,(o.tk||'')+gr(sh(base,1.06)),eb));
+    }
+    var nb=7,bwid=15.4,gapx=(PL-nb*bwid)/(nb-1),tone=["#d6b283","#c9a068","#dcb988","#c79e66","#d2ad7c","#d8b585","#cba26c"],i2;
+    for(i2=0;i2<nb;i2++)bpart(-PL/2+bwid/2+i2*(bwid+gapx),0,0,bwid,DK,PDp,tone[i2],{top:true,pl:true,tk:hs(i2+11)>.5?'radial-gradient(ellipse 14% 6% at '+Math.round(25+hs(i2+5)*50)+'% '+Math.round(20+hs(i2+9)*60)+'%,rgba(62,35,12,.55),rgba(62,35,12,0)),':''});   // closed top deck
+    var bx=[-(PL/2-7.25),0,PL/2-7.25],bz=[-(PDp/2-7.25),0,PDp/2-7.25],bi=0;
+    bx.forEach(function(x){bz.forEach(function(z){bi++;bpart(x,DK,z,14.5,BL,14.5,["#bd915b","#b48851","#c29860"][bi%3],{ao:true,knot:hs(bi)>.42?[28+hs(bi+3)*44,22+hs(bi+7)*50]:null})})});   // 9 blocks
+    bx.forEach(function(x,k){bpart(x,DK+BL,0,14.5,BM,PDp,["#c39b66","#bd9460","#c8a06b"][k],{top:true})});   // 3 bottom boards
+    out.push(F('width:'+f1(8.5)+'px;height:'+f1(4.6)+'px;box-sizing:border-box;border:1px solid rgba(40,24,8,.75);color:rgba(40,24,8,.85);font:900 '+Math.max(4,f1(2.6))+'px/'+Math.max(4,f1(4.6)-2)+'px sans-serif;text-align:center','translate3d('+f1(-4.25)+'px,'+f1(DK+2.6)+'px,'+(f1(PDp/2)+0.5)+'px)').replace('></div>','>HT</div>'));
+    }
     // ground shadow
     var sw=f1(PL*1.35),sd=f1(PDp*1.35);
     var shadow=F('width:'+sw+'px;height:'+sd+'px;background:radial-gradient(ellipse at center,rgba(0,0,0,.30),rgba(0,0,0,0) 68%);backface-visibility:visible','translate3d('+(-sw/2)+'px,'+(f1(DK+BL+BM)-sd/2+1)+'px,0px) rotateX(90deg)');
+    var cw=f1(PL*1.08),cd=f1(PDp*1.08);shadow+=F('width:'+cw+'px;height:'+cd+'px;background:radial-gradient(ellipse at center,rgba(0,0,0,.5),rgba(0,0,0,0) 72%);backface-visibility:visible','translate3d('+(-cw/2)+'px,'+(f1(DK+BL+BM)-cd/2+0.4)+'px,0px) rotateX(90deg)');
     var totalH=f1(HS+PH),hh=Math.max(totalH+112,250);
     return '<div class="p3" data-p3="'+id+'" style="height:'+hh+'px;perspective:1100px;touch-action:none;position:relative;overflow:hidden;margin-top:12px;border-radius:12px;background:linear-gradient(#e9eff8,var(--bg));cursor:grab">'
       +'<div class="p3r" style="position:absolute;left:50%;top:'+Math.round((hh-34)/2+(f1(HS)-f1(PH))/2)+'px;width:0;height:0;transform-style:preserve-3d;transform:rotateX(-20deg) rotateY(-32deg)"><div class="p3s" style="transform-style:preserve-3d;animation:p3spin 18s linear infinite">'+shadow+out.join("")+'</div></div>'
