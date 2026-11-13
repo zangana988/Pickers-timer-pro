@@ -2994,6 +2994,11 @@ PLATFORM="zanganam88@gmail.com";
     if($("hgs"))$("hgs").textContent=PAL.length?PAL.length+" product"+(PAL.length===1?"":"s"):"No products yet. Tap to add them.";
     var toks=palQ.toLowerCase().split(/[\s]+/).filter(Boolean),out=[];
     PAL.forEach(function(r,i){var hay=((r.a||"")+" "+(r.p||"")+" "+(r.t==="EUR"?"eur euro pallet":r.t==="Block"?"block blok pallet":"")).toLowerCase();for(var k=0;k<toks.length;k++)if(hay.indexOf(toks[k])<0)return;out.push(i)});
+    if(!toks.length){
+      $("pgc").textContent="";
+      $("pgl").innerHTML='<div class="empty" style="font-size:18px;padding:34px 10px">'+(!palLoaded?"Loading...":!PAL.length?(mgr?"No products yet. Tap + Add product, or import your Excel list below.":"The guide is empty. Ask your manager to add the products."):"Type the article number or the product name above to see its pallet.")+'</div>';
+      return;
+    }
     $("pgc").textContent=!palLoaded?"Loading...":PAL.length?(toks.length?out.length+" of "+PAL.length+" products":PAL.length+" products"):"";
     if(!PAL.length){$("pgl").innerHTML='<div class="empty">'+(palLoaded?(mgr?"No products yet. Tap + Add product, or import your Excel list below.":"The guide is empty. Ask your manager to add the products."):"Loading...")+'</div>';return}
     if(!out.length){$("pgl").innerHTML='<div class="empty">No product found.</div>';return}
@@ -3037,7 +3042,7 @@ PLATFORM="zanganam88@gmail.com";
       if(o.l<1||o.y<1){e.innerHTML='<div style="color:'+RED+';font-weight:700;margin-bottom:8px">Type the boxes per layer, and the layers or the boxes per pallet.</div>';return}
       var list=PAL.slice();if(i>=0)list[i]=o;else list.push(o);
       $("pfS").disabled=true;
-      palSave(list).then(function(){try{lg(i>=0?"Palletization changed":"Palletization added",(o.a||"")+" "+(o.p||"")+" · "+o.l+" x "+o.y+" = "+o.n)}catch(x){}closeSheet()}).catch(function(er){$("pfS").disabled=false;dbe(er)});
+      palSave(list).then(function(){palQ=o.a||o.p;$("pgq").value=palQ;palDraw();try{lg(i>=0?"Palletization changed":"Palletization added",(o.a||"")+" "+(o.p||"")+" · "+o.l+" x "+o.y+" = "+o.n)}catch(x){}closeSheet()}).catch(function(er){$("pfS").disabled=false;dbe(er)});
     };
     if(i>=0)$("pfD").onclick=function(){
       if(!confirm("Delete this product from the guide?"))return;
