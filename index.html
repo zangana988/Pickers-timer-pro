@@ -2720,7 +2720,7 @@ PLATFORM="zanganam88@gmail.com";
       +'<div id="paMsg"></div>'
       +'<div style="padding:12px;border-radius:10px;border:2px solid '+(on?GRN:"var(--line)")+';font-weight:700;margin-bottom:10px">This device: '+(on?"alerts ON":perm==="denied"?"blocked in the phone settings":"alerts off")+'</div>'
       +(perm==="denied"?'<div class="meta" style="margin-bottom:10px">Open Settings &gt; Notifications &gt; ALPHA Z WMS and allow notifications, then try again.</div>':'')
-      +'<div class="row">'+(on?'<button id="paTest" type="button" class="ghost">Send a test alert</button>':'')+(on?'<button id="paChk" type="button" class="ghost">Check this phone</button>':'')+(on?'<button id="paOff" type="button">Turn off on this device</button>':'<button id="paOn" type="button">Turn on alerts on this device</button>')+'<button id="paX" type="button" class="ghost">Close</button></div>'
+      +'<div class="row">'+(on?'<button id="paTest" type="button" class="ghost">Test with app closed (15 s)</button>':'')+(on?'<button id="paChk" type="button" class="ghost">Check this phone</button>':'')+(on?'<button id="paOff" type="button">Turn off on this device</button>':'<button id="paOn" type="button">Turn on alerts on this device</button>')+'<button id="paX" type="button" class="ghost">Close</button></div>'
       +(isPlat()?'<details id="paSet" style="margin-top:14px"'+(showSet||!cfg.vapid?' open':'')+'><summary>Setup (one time)</summary><div style="margin-top:8px">'
       +'<label class="wide">Web Push key (from Firebase)<input id="paK" autocomplete="off" value="'+esc(cfg.vapid)+'" placeholder="Paste the key pair here"></label>'
       +'<div class="meta" style="margin:4px 0 10px">Firebase console &gt; Project settings &gt; Cloud Messaging &gt; Web Push certificates &gt; Generate key pair.</div>'
@@ -2771,10 +2771,11 @@ PLATFORM="zanganam88@gmail.com";
       var wk=cfg.worker;if(!wk){pm("The alert server address is missing in Setup.",true);return}
       bt.disabled=true;pm("Sending a test alert...");
       firebase.auth().currentUser.getIdToken().then(function(tok){
-        return fetch(wk.replace(/\/+$/,"")+"/notify",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+tok},body:JSON.stringify({kind:"test"})});
+        return fetch(wk.replace(/\/+$/,"")+"/notify",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+tok},body:JSON.stringify({kind:"test",delay:15})});
       }).then(function(r){return r.json().then(function(j){return [r.status,j]})}).then(function(x){
         bt.disabled=false;var j=x[1];
         if(x[0]!==200)pm("The alert server answered: "+(j.error||x[0])+". If it says 'nothing to send' or 'bad id', the alert server code is old: update it in Cloudflare.",true);
+        else if(j.scheduled){pm("DONE. Now fully close the app: swipe it away in the app switcher, lock the phone and wait. In about 15 seconds a notification should appear.")}
         else if(!j.total)pm("The server found 0 phones registered for alerts. Turn alerts off and on again on this phone.",true);
         else if(!j.sent)pm("Found "+j.total+" phone(s) but Google refused: "+(j.errors&&j.errors[0]?j.errors[0].status+" "+j.errors[0].error:"unknown"),true);
         else pm("Sent to "+j.sent+" of "+j.total+" phone(s). Close the app now: the alert should appear on the phone within seconds.");
