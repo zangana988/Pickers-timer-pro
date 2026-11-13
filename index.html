@@ -319,7 +319,7 @@ rr();render();stats();setInterval(render,1000);
         var cd=c.exists?c.data():{};
         if(cd.active===false){noAccess(u,"This company account is suspended. Please contact support.");return}
         CID=m.cid;ROLE=m.role||"staff";COMP=cd;CFG=Object.assign({},CFG,cd.settings||{});
-        window.SCANNER=!!m.scanner;window.SCANNER_PICKER=m.scanner?(m.picker||""):"";
+        window.SCANNER=!!m.scanner;window.SCANNER_PICKER=m.scanner?(m.picker||""):"";window.INBOUND=!!m.inbound;
         if(m.scanner&&new URLSearchParams(location.search).get("me")!=="1"){var q2=new URLSearchParams(location.search);q2.set("me","1");q2.delete("display");location.replace(location.pathname+"?"+q2.toString().replace(/%40/g,"@"));return}
         applyBrand();window.dispatchEvent(new Event("rolechange"));go();view("app");
       });
@@ -568,11 +568,11 @@ rr();render();stats();setInterval(render,1000);
   $("so").parentNode.insertAdjacentElement("afterend",w);
   var md=document.createElement("div");md.hidden=true;
   md.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))";
-  md.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">Staff access</h1><button id="sx" type="button" class="ghost">Close</button></div><div class="meta" style="margin-bottom:8px">Type the full name and email of the person, then tap Give access. They open the app, tap "First time? Create my password", choose a password and verify their email. Remove someone to lock them out immediately.</div><input id="sn" placeholder="Full name (first and last name)" autocomplete="off" style="margin-bottom:8px"><input id="sm" type="email" placeholder="email@example.com" autocomplete="off"><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sd" type="checkbox" style="width:auto"> Display tablet only (read-only, for the pickers)</label><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sp" type="checkbox" style="width:auto"> Picker scanner login (shows only the picker screen)</label><select id="spn" hidden style="margin-bottom:8px"></select><div class="row"><button id="sa" type="button">Give access</button></div><div id="sl"></div></div>';
+  md.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">Staff access</h1><button id="sx" type="button" class="ghost">Close</button></div><div class="meta" style="margin-bottom:8px">Type the full name and email of the person, then tap Give access. They open the app, tap "First time? Create my password", choose a password and verify their email. Remove someone to lock them out immediately.</div><input id="sn" placeholder="Full name (first and last name)" autocomplete="off" style="margin-bottom:8px"><input id="sm" type="email" placeholder="email@example.com" autocomplete="off"><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sd" type="checkbox" style="width:auto"> Display tablet only (read-only, for the pickers)</label><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sp" type="checkbox" style="width:auto"> Picker scanner login (shows only the picker screen)</label><select id="spn" hidden style="margin-bottom:8px"></select><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="si" type="checkbox" style="width:auto"> Inbound staff login (shows only the Palletization guide)</label><div class="row"><button id="sa" type="button">Give access</button></div><div id="sl"></div></div>';
   document.body.appendChild(md);
-  function lab(r,x){return x&&x.scanner?"Picker scanner"+(x.picker?" · "+x.picker:" · picker chooses"):r==="owner"?"Manager":r==="display"?"Display tablet":"Supervisor"}
+  function lab(r,x){return x&&x.inbound?"Inbound staff":x&&x.scanner?"Picker scanner"+(x.picker?" · "+x.picker:" · picker chooses"):r==="owner"?"Manager":r==="display"?"Display tablet":"Supervisor"}
   function fillSp(){var sel=$("spn"),cur=sel.value,h='<option value="">Any picker (the picker chooses on the scanner)</option>';(S.roster||[]).forEach(function(n){h+='<option value="'+esc(n)+'">Only '+esc(n)+'</option>'});sel.innerHTML=h;sel.value=cur}
-  setTimeout(function(){$("sp").onchange=function(){$("spn").hidden=!this.checked;if(this.checked){fillSp();$("sd").checked=false}};$("sd").onchange=function(){if(this.checked){$("sp").checked=false;$("spn").hidden=true}}},0);
+  setTimeout(function(){$("sp").onchange=function(){$("spn").hidden=!this.checked;if(this.checked){fillSp();$("sd").checked=false;$("si").checked=false}};$("sd").onchange=function(){if(this.checked){$("sp").checked=false;$("si").checked=false;$("spn").hidden=true}};$("si").onchange=function(){if(this.checked){$("sp").checked=false;$("sd").checked=false;$("spn").hidden=true}}},0);
   function draw(){
     $("sl").innerHTML=list.length?list.map(function(x){return '<div class="h"><span><b>'+esc(x.name||"(no name yet)")+'</b><br><span class="meta">'+esc(x.email)+' · '+lab(x.role,x)+'</span></span>'+(x.role==="owner"?'':'<button class="ghost" data-e="'+esc(x.email)+'" type="button">Remove</button>')+'</div>'}).join(""):'<div class="empty">No one added yet.</div>';
   }
@@ -581,10 +581,10 @@ rr();render();stats();setInterval(render,1000);
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){alert("Type a valid email address.");return}
     if(!nm){alert("Type the full name (first and last name).");return}
     if(!RAW||!u||!CID)return;
-    var role=$("sd").checked?"display":"staff",b=RAW.batch(),sc=$("sp").checked,pk=sc?$("spn").value:"",ex=sc?{scanner:true,picker:pk}:{};
+    var role=$("sd").checked?"display":"staff",b=RAW.batch(),sc=$("sp").checked,ib=$("si").checked,pk=sc?$("spn").value:"",ex=sc?{scanner:true,picker:pk}:ib?{inbound:true}:{};
     b.set(RAW.doc("members/"+em),Object.assign({email:em,cid:CID,role:role,name:nm,by:u.email,at:Date.now()},ex));
     b.set(DB.doc("people/"+em),Object.assign({email:em,name:nm,role:role},ex));
-    b.commit().then(function(){lg("Gave access / set name",nm+" · "+em+(role==="display"?" (display only)":"")+(sc?" (picker scanner"+(pk?" for "+pk:"")+")":""));$("sm").value="";$("sn").value="";$("sd").checked=false;$("sp").checked=false;$("spn").hidden=true}).catch(function(e){
+    b.commit().then(function(){lg("Gave access / set name",nm+" · "+em+(role==="display"?" (display only)":"")+(sc?" (picker scanner"+(pk?" for "+pk:"")+")":"")+(ib?" (inbound staff)":""));$("sm").value="";$("sn").value="";$("sd").checked=false;$("sp").checked=false;$("si").checked=false;$("spn").hidden=true}).catch(function(e){
       if(e&&e.code==="permission-denied")alert("This email cannot be added. It may already belong to another company, or it is a manager account.");else dbe(e);
     });
   };
@@ -1117,6 +1117,7 @@ rr();render();stats();setInterval(render,1000);
   ov.innerHTML='<div style="font-size:22px;font-weight:800;letter-spacing:1px">CHECK THIS ORDER IN THE SYSTEM</div><div id="chn" style="font-size:clamp(40px,11vw,96px);font-weight:900;line-height:1.05"></div><div id="cho" style="font-size:clamp(22px,6vw,44px);font-weight:700"></div><div id="cht" style="font-size:clamp(64px,22vw,180px);font-weight:900;font-variant-numeric:tabular-nums;line-height:1"></div><div id="chm" style="font-size:22px;font-weight:700"></div><div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:center"><button id="chc" type="button" style="background:#fff;color:#7f1510">Continue counting</button><button id="chs" type="button" style="background:#1b2220;color:#fff">Stop timer (order done)</button></div><div id="chq" style="font-size:18px"></div>';
   document.body.appendChild(ov);
   function pick(){
+    if(window.INBOUND)return [];
     var now=Date.now();
     return S.active.filter(function(a){var tot=a.mins*60000,left=tot-(now-a.start);return tot>CFG.lead*60000&&left<=CFG.lead*60000&&left>-GRACE&&!a.ack&&!dismissed[a.id]})
       .sort(function(x,y){return (x.start+x.mins*60000)-(y.start+y.mins*60000)});
@@ -1591,7 +1592,8 @@ PLATFORM="zanganam88@gmail.com";
     +'<div style="display:grid;gap:14px;margin-top:30px">'
     +'<button id="hp" type="button" style="padding:22px 14px;font-size:20px">Pickers management</button>'
     +'<button id="he" type="button" style="padding:22px 14px;font-size:20px">Expirations management<div id="hes" style="font-size:14px;font-weight:600;margin-top:6px"></div></button>'
-    +'<button id="hm" type="button" style="padding:22px 14px;font-size:20px">Warehouse Map<div id="hms" style="font-size:14px;font-weight:600;margin-top:6px"></div></button></div>'
+    +'<button id="hm" type="button" style="padding:22px 14px;font-size:20px">Warehouse Map<div id="hms" style="font-size:14px;font-weight:600;margin-top:6px"></div></button>'
+    +'<button id="hg" type="button" style="padding:22px 14px;font-size:20px">Palletization guide<div id="hgs" style="font-size:14px;font-weight:600;margin-top:6px"></div></button></div>'
     +'<div id="hall" hidden style="margin-top:22px"><button id="hallb" type="button" style="width:100%;padding:16px 14px;font-size:17px">All companies (owner)</button><div class="meta" style="margin-top:6px">You are viewing this company as the owner. Tap to go back to the list of all companies.</div></div>'
     +'<div class="row" style="margin-top:22px"><button id="hpush" type="button" class="ghost">Phone alerts</button><button id="hpin" type="button" class="ghost">Picker PINs</button><button id="hso" type="button" class="ghost">Sign out</button></div></div>';
   document.body.appendChild(hub);
@@ -1651,7 +1653,10 @@ PLATFORM="zanganam88@gmail.com";
 
   function sync(){
     var own=ROLE==="owner"&&!ap.hidden;
-    ai.hidden=ab.hidden=ap.hidden||!ROLE||ROLE==="display"||!!window.SCANNER||/[?&]me=1/.test(location.search);
+    var inb=!!window.INBOUND&&ROLE!=="owner"&&!ap.hidden;
+    pg.hidden=!((own&&page==="pal")||inb);
+    if(own||inb)palSub();
+    ai.hidden=ab.hidden=ap.hidden||!!window.INBOUND||!ROLE||ROLE==="display"||!!window.SCANNER||/[?&]me=1/.test(location.search);
     if(ap.hidden)page="menu";
     hub.hidden=!(own&&page==="menu");ex.hidden=!(own&&page==="exp");if(typeof wm!=="undefined"&&wm)wm.hidden=!(own&&page==="map");mb.hidden=!own;
     var cu=firebase.auth().currentUser;
@@ -2839,6 +2844,222 @@ PLATFORM="zanganam88@gmail.com";
   }
   $("hpin").onclick=function(){pinsSheet()};
 
+  // =================== Product palletization guide ===================
+  var PAL=[],PALM={n:0},palOn=false,palRaw=[],palQ="",palLim=60,palSeq=0,PCH=400,palLoaded=false,palImp=null,palOpen={};
+  var pg=document.createElement("div");pg.hidden=true;pg.style.cssText=FULL+";z-index:46";
+  pg.innerHTML='<div style="max-width:720px;margin:0 auto">'
+    +'<div class="row" style="margin:0 0 10px"><h1 style="margin:0;font-size:22px;display:flex;align-items:center;gap:8px">'+badge(28)+'<span>Palletization guide</span></h1><button id="pgm" type="button" class="ghost" hidden>Menu</button><button id="pgo" type="button" class="ghost" hidden>Sign out</button></div>'
+    +'<div id="pgMsg"></div>'
+    +'<input id="pgq" placeholder="Search article number or product" autocomplete="off" style="font-size:20px;padding:14px;margin-bottom:8px">'
+    +'<div id="pgc" class="meta" style="margin-bottom:10px"></div>'
+    +'<div id="pgmg" hidden><div class="row" style="margin:0 0 12px"><button id="pga" type="button">+ Add product</button></div></div>'
+    +'<div id="pgl"></div>'
+    +'<div id="pgim" hidden><details style="margin-top:16px"><summary>Import from Excel (first load or bulk update)</summary><div style="margin-top:10px">'
+    +'<div class="meta" style="margin-bottom:8px">Columns: article number, product, boxes per layer, layers per pallet, boxes per pallet and pallet type (EUR or Block). Products with the same article number are updated, new ones are added.</div>'
+    +'<input id="pgf" type="file"><div class="meta" style="margin:12px 0 6px">Or copy the cells in Excel and paste them here:</div>'
+    +'<textarea id="pgp" rows="4" placeholder="Paste cells here (with the header row)" style="width:100%"></textarea>'
+    +'<div id="pgmap" style="margin-top:10px"></div>'
+    +'<div class="row" style="margin-top:14px"><button id="pgclr" type="button" class="ghost">Delete the whole guide</button></div></div></details></div>'
+    +'</div>';
+  document.body.appendChild(pg);
+  function pgMsg(t,bad){var e=$("pgMsg");e.innerHTML=t?'<div style="padding:10px 12px;border-radius:10px;font-weight:600;margin-bottom:10px;background:'+(bad?"var(--badbg)":"var(--okbg)")+';color:'+(bad?RED:"var(--ok)")+'">'+esc(t)+'</div>':""}
+  function palMgr(){return ROLE==="owner"}
+  function palSub(){
+    if(palOn||!DB)return;palOn=true;
+    DB.doc("app/palmeta").onSnapshot(function(d){
+      var m=d.exists?d.data():{n:0},seq=++palSeq,n=+m.n||0;PALM={n:n};
+      var jobs=[];for(var i=0;i<n;i++)jobs.push(DB.doc("app/pal_"+i).get());
+      Promise.all(jobs).then(function(ds){
+        if(seq!==palSeq)return;
+        palRaw=[];var all=[];
+        ds.forEach(function(x,i){var rs=x.exists?(x.data().rows||[]):[];palRaw[i]=JSON.stringify(rs);all=all.concat(rs)});
+        PAL=all;palLoaded=true;palDraw();
+      }).catch(function(){pgMsg("Cannot read the guide. Check your connection and access.",true)});
+    },function(){pgMsg("Cannot read the guide. Check your connection and access.",true)});
+  }
+  // pallet type is EUR (80 x 120 cm) or Block (100 x 120 cm)
+  var PT={EUR:{n:"EUR pallet",d:"80 x 120 cm",ratio:1.5,c:"#0a5fd0"},Block:{n:"Block pallet",d:"100 x 120 cm",ratio:1.2,c:"#c25b00"}};
+  function palType(t){var x=String(t||"").toLowerCase();if(/eur|epal|\b80\b/.test(x))return "EUR";if(/block|blok|\b100\b/.test(x))return "Block";return ""}
+  function palClean(r){
+    var l=Math.round(+r.l)||0,y=Math.round(+r.y)||0,n=Math.round(+r.n)||0;
+    if(l>0&&!y&&n>0)y=Math.ceil(n/l);
+    if(l>0&&y>0&&!n)n=l*y;
+    var o={a:String(r.a||"").trim(),p:String(r.p||"").trim(),l:l,y:y,n:n};
+    var pt=palType(r.t);if(pt)o.t=pt;
+    return o;
+  }
+  // 3D pallet: boxes per layer -> columns x rows (closest to the shape of a pallet), layers stacked on top
+  function palGrid(l,ratio){ratio=ratio||1.5;
+    var best=[l,1],bs=1e9,r;
+    for(r=1;r<=l;r++){if(l%r)continue;var c=l/r;if(c<r)continue;var sc=Math.abs(c/r-ratio);if(sc<bs){bs=sc;best=[c,r]}}
+    return best;
+  }
+  function pal3d(r,id){
+    var pt=PT[palType(r.t)]||PT.EUR,g=palGrid(r.l,pt.ratio),cols=g[0],rows=g[1],lay=Math.min(r.y,40),bw=1.2,bd=0.8,bh=0.8;
+    var tw=cols*bw,td=rows*bd,th=lay*bh,sc=Math.min(190/tw,190/td,170/th,60),W=Math.round(tw*sc),D=Math.round(td*sc),H=Math.round(th*sc);
+    var line="#6b4a1f",box="#cf9f5e",top="#e0b878",side="#b98a4d";
+    function grid(w,h,nx,ny,bg){return 'width:'+w+'px;height:'+h+'px;background-color:'+bg+';background-image:linear-gradient(to right,'+line+' 2px,transparent 2px),linear-gradient(to bottom,'+line+' 2px,transparent 2px);background-size:'+(w/nx)+'px '+(h/ny)+'px;border:2px solid '+line+';box-sizing:border-box'}
+    function face(t,css){return '<div style="position:absolute;left:0;top:0;backface-visibility:hidden;'+css+';transform:'+t+'"></div>'}
+    var PB=14,PW=W+14,PD=D+14,base=[
+      face('translate(-'+PW/2+'px,'+(H/2-PD/2)+'px) rotateX(90deg)','width:'+PW+'px;height:'+PD+'px;background:#b88a52;border:1px solid #5b3d1c;box-sizing:border-box'),
+      face('translate(-'+PW/2+'px,'+(H/2)+'px) translateZ('+PD/2+'px)','width:'+PW+'px;height:'+PB+'px;background:#9a6b3a;border:1px solid #5b3d1c;box-sizing:border-box'),
+      face('translate(-'+PW/2+'px,'+(H/2)+'px) rotateY(180deg) translateZ('+PD/2+'px)','width:'+PW+'px;height:'+PB+'px;background:#9a6b3a;border:1px solid #5b3d1c;box-sizing:border-box'),
+      face('translate(-'+PD/2+'px,'+(H/2)+'px) rotateY(90deg) translateZ('+PW/2+'px)','width:'+PD+'px;height:'+PB+'px;background:#8a5d30;border:1px solid #5b3d1c;box-sizing:border-box'),
+      face('translate(-'+PD/2+'px,'+(H/2)+'px) rotateY(-90deg) translateZ('+PW/2+'px)','width:'+PD+'px;height:'+PB+'px;background:#8a5d30;border:1px solid #5b3d1c;box-sizing:border-box')
+    ].join("");
+    var f=[
+      face('translate(-'+W/2+'px,-'+H/2+'px) translateZ('+D/2+'px)',grid(W,H,cols,lay,box)),
+      face('translate(-'+W/2+'px,-'+H/2+'px) rotateY(180deg) translateZ('+D/2+'px)',grid(W,H,cols,lay,box)),
+      face('translate(-'+D/2+'px,-'+H/2+'px) rotateY(90deg) translateZ('+W/2+'px)',grid(D,H,rows,lay,side)),
+      face('translate(-'+D/2+'px,-'+H/2+'px) rotateY(-90deg) translateZ('+W/2+'px)',grid(D,H,rows,lay,side)),
+      face('translate(-'+W/2+'px,-'+D/2+'px) rotateX(90deg) translateZ('+H/2+'px)',grid(W,D,cols,rows,top))
+    ].join("");
+    var hh=Math.max(H+PB+60,150);
+    return '<div class="p3" data-p3="'+id+'" style="height:'+(hh+66)+'px;perspective:800px;touch-action:none;position:relative;overflow:hidden;margin-top:12px;border-radius:12px;background:var(--bg);cursor:grab">'
+      +'<div class="p3r" style="position:absolute;left:50%;top:'+(hh/2+10)+'px;width:0;height:0;transform-style:preserve-3d;transform:rotateX(-22deg) rotateY(-35deg)"><div class="p3s" style="transform-style:preserve-3d;animation:p3spin 16s linear infinite">'+f+base+'</div></div>'
+      +'<div style="position:absolute;left:10px;bottom:8px;font-size:13px;font-weight:700;opacity:.8">'+(PT[palType(r.t)]?pt.n+' '+pt.d+' &middot; ':'')+cols+' &times; '+rows+' per layer &times; '+lay+' layers &middot; drag to turn</div></div>';
+  }
+  (function(){var st=document.createElement("style");st.textContent="@keyframes p3spin{from{transform:rotateY(0)}to{transform:rotateY(360deg)}}";document.head.appendChild(st)})();
+  function pal3dBind(root){
+    Array.prototype.forEach.call(root.querySelectorAll(".p3"),function(el){
+      var rr=el.querySelector(".p3r"),sp=el.querySelector(".p3s"),ax=-22,ay=-35,sx=0,sy=0,dn=false;
+      el.addEventListener("pointerdown",function(e){dn=true;sx=e.clientX;sy=e.clientY;sp.style.animationPlayState="paused";try{el.setPointerCapture(e.pointerId)}catch(x){}});
+      el.addEventListener("pointermove",function(e){if(!dn)return;ay+=(e.clientX-sx)*0.6;ax=Math.max(-80,Math.min(10,ax-(e.clientY-sy)*0.4));sx=e.clientX;sy=e.clientY;rr.style.transform="rotateX("+ax+"deg) rotateY("+ay+"deg)"});
+      var up=function(){dn=false};el.addEventListener("pointerup",up);el.addEventListener("pointercancel",up);
+    });
+  }
+  function palSave(list){
+    var chunks=[],i;for(i=0;i<list.length;i+=PCH)chunks.push(list.slice(i,i+PCH));
+    var b=DB.batch(),raw=[];
+    chunks.forEach(function(c,k){var s=JSON.stringify(c);raw[k]=s;if(palRaw[k]!==s)b.set(DB.doc("app/pal_"+k),{rows:c})});
+    for(i=chunks.length;i<Math.max(PALM.n,palRaw.length);i++)b.delete(DB.doc("app/pal_"+i));
+    b.set(DB.doc("app/palmeta"),{n:chunks.length,at:Date.now()});
+    return b.commit().then(function(){PAL=list;palRaw=raw;PALM={n:chunks.length};palDraw()});
+  }
+  function ptBadge(t){
+    var k=palType(t),i=PT[k];
+    if(!i)return '<div style="display:inline-block;margin-top:8px;padding:6px 12px;border-radius:999px;background:var(--badbg);color:'+RED+';font-weight:800;font-size:15px">Pallet type missing</div>';
+    return '<div style="display:inline-block;margin-top:8px;padding:6px 14px;border-radius:999px;background:'+i.c+';color:#fff;font-weight:900;font-size:17px;letter-spacing:.03em">'+esc(i.n)+' &middot; '+i.d+'</div>';
+  }
+  function nbx(v,l,strong){return '<div style="background:'+(strong?'var(--btn)':'var(--bg)')+';color:'+(strong?'var(--btnink)':'var(--ink)')+';border-radius:10px;padding:10px 4px"><div style="font-size:'+(strong?32:26)+'px;font-weight:900;line-height:1">'+v+'</div><div style="font-size:12px;font-weight:700;margin-top:4px;opacity:.85">'+l+'</div></div>'}
+  function palDraw(){
+    if(!$("pgl"))return;
+    var mgr=palMgr();
+    $("pgmg").hidden=!mgr;$("pgim").hidden=!mgr;$("pgm").hidden=!mgr;$("pgo").hidden=mgr||!window.INBOUND;
+    if($("hgs"))$("hgs").textContent=PAL.length?PAL.length+" product"+(PAL.length===1?"":"s"):"No products yet. Tap to add them.";
+    var toks=palQ.toLowerCase().split(/[\s]+/).filter(Boolean),out=[];
+    PAL.forEach(function(r,i){var hay=((r.a||"")+" "+(r.p||"")+" "+(r.t==="EUR"?"eur euro pallet":r.t==="Block"?"block blok pallet":"")).toLowerCase();for(var k=0;k<toks.length;k++)if(hay.indexOf(toks[k])<0)return;out.push(i)});
+    $("pgc").textContent=!palLoaded?"Loading...":PAL.length?(toks.length?out.length+" of "+PAL.length+" products":PAL.length+" products"):"";
+    if(!PAL.length){$("pgl").innerHTML='<div class="empty">'+(palLoaded?(mgr?"No products yet. Tap + Add product, or import your Excel list below.":"The guide is empty. Ask your manager to add the products."):"Loading...")+'</div>';return}
+    if(!out.length){$("pgl").innerHTML='<div class="empty">No product found.</div>';return}
+    var searching=toks.length>0,v3=0;
+    $("pgl").innerHTML=out.slice(0,palLim).map(function(i){
+      var r=PAL[i],tot=r.n||(+r.l||0)*(+r.y||0),inf=[];
+      var show3=r.l>0&&r.y>0&&((searching&&v3++<5)||palOpen[i]);
+      return '<div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px">'
+        +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div style="min-width:0"><div style="font-weight:800;font-size:19px;overflow-wrap:anywhere">'+esc(r.p||r.a||"")+'</div>'+(r.a&&r.p?'<div class="meta" style="font-size:15px">'+esc(r.a)+'</div>':"")+ptBadge(r.t)+'</div>'
+        +(mgr?'<button type="button" class="ghost" data-pe="'+i+'" style="width:auto;flex:none">Edit</button>':"")+'</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:8px;margin-top:12px;text-align:center">'+nbx(r.l||"-","boxes per layer")+nbx(r.y||"-","layers")+nbx(tot||"-","boxes per pallet",true)+'</div>'
+        +(inf.length?'<div class="meta" style="margin-top:10px;font-size:15px;font-weight:600">'+inf.join(" &middot; ")+'</div>':"")
+        +(show3?pal3d(r,i):'<button type="button" class="ghost" data-p3b="'+i+'" style="width:100%;margin-top:10px">Show 3D pallet</button>')
+        +'</div>';
+    }).join("")+(out.length>palLim?'<button id="pgmore" type="button" class="ghost" style="width:100%">Show more ('+(out.length-palLim)+' more)</button>':"");
+    pal3dBind($("pgl"));
+    Array.prototype.forEach.call($("pgl").querySelectorAll("[data-p3b]"),function(b){b.onclick=function(){palOpen[+b.dataset.p3b]=true;palDraw()}});
+    var mo=$("pgmore");if(mo)mo.onclick=function(){palLim+=60;palDraw()};
+    Array.prototype.forEach.call($("pgl").querySelectorAll("[data-pe]"),function(b){b.onclick=function(){palForm(+b.dataset.pe)}});
+  }
+  $("pgq").oninput=function(){palQ=this.value;palLim=60;palDraw()};
+  function palForm(i){
+    var r=i>=0?PAL[i]:{a:"",p:"",l:"",y:"",n:"",t:""};
+    var f=function(id,lbl,v,ph,ty){return '<label class="wide">'+lbl+'<input id="'+id+'" value="'+esc(v==null?"":v)+'" placeholder="'+(ph||"")+'" autocomplete="off"'+(ty?' inputmode="'+ty+'"':"")+'></label>'};
+    sheet('<h2 style="margin:0 0 10px">'+(i>=0?"Edit product":"Add product")+'</h2><div id="pfMsg"></div>'
+      +f("pfA","Article number",r.a,"")+f("pfP","Product",r.p,"")
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+f("pfL","Boxes per layer",r.l,"","numeric")+f("pfY","Layers per pallet",r.y,"","numeric")+'</div>'
+      +f("pfN","Boxes per pallet",r.n,"leave empty to calculate","numeric")
+      +'<div id="pfT" class="meta" style="margin:-4px 0 10px"></div>'
+      +'<label class="wide">Pallet type (required)<select id="pfK"><option value="">Choose...</option><option value="EUR"'+(palType(r.t)==="EUR"?" selected":"")+'>EUR pallet (80 x 120 cm)</option><option value="Block"'+(palType(r.t)==="Block"?" selected":"")+'>Block pallet (100 x 120 cm)</option></select></label>'
+      +'<div class="row" style="margin-top:14px"><button id="pfS" type="button">Save</button><button id="pfX" type="button" class="ghost">Cancel</button>'+(i>=0?'<button id="pfD" type="button" class="ghost">Delete</button>':"")+'</div>');
+    function nv(id){return Math.round(+String($(id).value).replace(",","."))||0}
+    function tot(){var l=nv("pfL"),y=nv("pfY"),n=nv("pfN");$("pfT").textContent=l&&y?(n?"Boxes per pallet: "+n+(n!==l*y?" (layers x per layer = "+(l*y)+")":""):l+" x "+y+" = "+(l*y)+" boxes per pallet"):""}
+    $("pfL").oninput=tot;$("pfY").oninput=tot;$("pfN").oninput=tot;tot();
+    $("pfX").onclick=closeSheet;
+    $("pfS").onclick=function(){
+      var o=palClean({a:$("pfA").value,p:$("pfP").value,l:nv("pfL"),y:nv("pfY"),n:nv("pfN"),t:$("pfK").value});
+      var e=$("pfMsg");
+      if(!o.a&&!o.p){e.innerHTML='<div style="color:'+RED+';font-weight:700;margin-bottom:8px">Type the article number or the product.</div>';return}
+      if(!o.t){e.innerHTML='<div style="color:'+RED+';font-weight:700;margin-bottom:8px">Choose the pallet type: EUR or Block.</div>';return}
+      if(o.l<1||o.y<1){e.innerHTML='<div style="color:'+RED+';font-weight:700;margin-bottom:8px">Type the boxes per layer, and the layers or the boxes per pallet.</div>';return}
+      var list=PAL.slice();if(i>=0)list[i]=o;else list.push(o);
+      $("pfS").disabled=true;
+      palSave(list).then(function(){try{lg(i>=0?"Palletization changed":"Palletization added",(o.a||"")+" "+(o.p||"")+" · "+o.l+" x "+o.y+" = "+o.n)}catch(x){}closeSheet()}).catch(function(er){$("pfS").disabled=false;dbe(er)});
+    };
+    if(i>=0)$("pfD").onclick=function(){
+      if(!confirm("Delete this product from the guide?"))return;
+      var list=PAL.slice();list.splice(i,1);
+      palSave(list).then(function(){try{lg("Palletization deleted",(r.a||"")+" "+(r.p||""))}catch(x){}closeSheet()}).catch(dbe);
+    };
+  }
+  $("pga").onclick=function(){palForm(-1)};
+  // ----- import -----
+  var PF=[["a","Article number"],["p","Product"],["l","Boxes per layer"],["y","Layers per pallet"],["n","Boxes per pallet"],["t","Pallet type (EUR or Block)"]];
+  var PRX={n:/(box|carton|case|colli|doos|dozen|qty|quantity|total).{0,12}pallet|pallet.{0,12}(qty|box|total|quant)|^total/i,l:/per.?layer|layer.?(qty|box|carton|case)|(box|carton|case|doos|dozen).*(laag|layer)|\bti\b/i,y:/layers|lagen|\bhi\b|number.of.layer/i,a:/^(art|sku|code|item|ean|ref)|article|artikel|product.?(code|nr|no|number)/i,p:/product|name|desc|omschr|naam/i,t:/pallet.?type|type|^pallet$/i};
+  function palGuess(head){
+    var used={},g={};
+    ["l","y","n","a","p","t"].forEach(function(k){
+      for(var c=0;c<head.length;c++){if(used[c])continue;if(PRX[k].test(String(head[c]||""))){g[k]=c;used[c]=1;break}}
+    });
+    return g;
+  }
+  function palRows(rows){
+    rows=rows.filter(function(r){return r.some(function(c){return String(c==null?"":c).trim()!==""})});
+    if(rows.length<2){pgMsg("No data found. The first row must be the column titles.",true);return}
+    var head=rows[0].map(function(c){return String(c==null?"":c).trim()}),g=palGuess(head);
+    palImp={head:head,rows:rows.slice(1)};
+    var opt='<option value="-1">(none)</option>'+head.map(function(h,c){return '<option value="'+c+'">'+letter(c)+' - '+esc(h||"(empty)")+'</option>'}).join("");
+    $("pgmap").innerHTML='<div class="meta" style="margin-bottom:8px">'+palImp.rows.length+' rows found. Check which column is which:</div>'
+      +PF.map(function(f){return '<label class="wide">'+f[1]+'<select data-pf="'+f[0]+'">'+opt+'</select></label>'}).join("")
+      +'<label class="wide">If a row has no pallet type, use<select id="pgDef"><option value="">Skip that row</option><option value="EUR">EUR pallet</option><option value="Block">Block pallet</option></select></label>'
+      +'<div class="row" style="margin-top:10px"><button id="pgGo" type="button">Import '+palImp.rows.length+' rows</button></div>';
+    PF.forEach(function(f){var s=$("pgmap").querySelector('[data-pf="'+f[0]+'"]');s.value=g[f[0]]!=null?g[f[0]]:-1});
+    $("pgGo").onclick=palRun;
+  }
+  function palRun(){
+    var col={};Array.prototype.forEach.call($("pgmap").querySelectorAll("[data-pf]"),function(s){col[s.dataset.pf]=+s.value});
+    if(col.l<0||(col.y<0&&col.n<0)||(col.a<0&&col.p<0)||col.t<0&&!$("pgDef").value){pgMsg("Choose the columns for boxes per layer, layers per pallet (or boxes per pallet), and the article number or product.",true);return}
+    var num=function(v){return +String(v==null?"":v).replace(",",".").replace(/[^0-9.]/g,"")||0};
+    var get=function(r,k){return col[k]>=0?r[col[k]]:""};
+    var list=PAL.slice(),idx={},skipped=0,add=0,upd=0;
+    var key=function(o){return (o.a||o.p).toLowerCase()};
+    list.forEach(function(o,i){idx[key(o)]=i});
+    palImp.rows.forEach(function(r){
+      var o=palClean({a:get(r,"a"),p:get(r,"p"),l:num(get(r,"l")),y:num(get(r,"y")),n:num(get(r,"n")),t:palType(get(r,"t"))||$("pgDef").value});
+      if((!o.a&&!o.p)||o.l<1||o.y<1||!o.t){skipped++;return}
+      var k=key(o);if(idx[k]!=null){list[idx[k]]=o;upd++}else{idx[k]=list.length;list.push(o);add++}
+    });
+    if(!add&&!upd){pgMsg("Nothing to import. Check the columns: the numbers and the pallet type (EUR or Block) must be filled in.",true);return}
+    $("pgGo").disabled=true;
+    palSave(list).then(function(){try{lg("Palletization imported",add+" added, "+upd+" updated")}catch(x){}
+      pgMsg("Done. "+add+" added, "+upd+" updated"+(skipped?", "+skipped+" rows skipped (missing numbers or pallet type).":"."));$("pgmap").innerHTML="";$("pgf").value="";$("pgp").value="";palImp=null;
+    }).catch(function(e){$("pgGo").disabled=false;dbe(e)});
+  }
+  $("pgf").onchange=function(){
+    var f=this.files&&this.files[0];if(!f)return;
+    pgMsg("Reading the file...");
+    var done=function(rows){pgMsg("");palRows(rows)},fail=function(e){pgMsg("Could not read this file: "+((e&&e.message)||e),true)};
+    if(/\.csv$|\.txt$/i.test(f.name)){var fr=new FileReader();fr.onload=function(){try{done(readCsv(String(fr.result)))}catch(e){fail(e)}};fr.readAsText(f)}
+    else{var fb=new FileReader();fb.onload=function(){readXlsx(fb.result).then(function(sh){done(sh[0].rows)}).catch(fail)};fb.readAsArrayBuffer(f)}
+  };
+  $("pgp").oninput=function(){var t=this.value;if(t.trim())try{palRows(readCsv(t))}catch(e){}};
+  $("pgclr").onclick=function(){
+    if(!PAL.length)return;
+    if(!confirm("Delete ALL "+PAL.length+" products from the guide? This cannot be undone.")||prompt('Type DELETE to confirm')!=="DELETE")return;
+    palSave([]).then(function(){try{lg("Palletization guide cleared","")}catch(x){}pgMsg("The guide was cleared.")}).catch(dbe);
+  };
+  $("hg").onclick=function(){page="pal";sync();palDraw()};
+  $("pgm").onclick=function(){page="menu";sync()};
+  $("pgo").onclick=function(){$("so").click()};
+
   sync();
 })();
 
@@ -3075,7 +3296,7 @@ PLATFORM="zanganam88@gmail.com";
   }
   function paintN(){
     var u=firebase.auth().currentUser;
-    if(!ready()||ROLE==="display"){box.innerHTML="";lastKeys="__";return}
+    if(!ready()||ROLE==="display"||window.INBOUND){box.innerHTML="";lastKeys="__";return}
     var items=[];
     (S.doneQ||[]).forEach(function(a){items.push({k:"d"+a.id,t:"d",a:a})});
     S.active.forEach(function(a){if(a.more&&a.more.at)items.push({k:"m"+a.id+":"+a.more.at,t:"m",a:a})});
