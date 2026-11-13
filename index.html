@@ -3548,6 +3548,17 @@ PLATFORM="zanganam88@gmail.com";
     };
   }
   $("lbsa").onclick=function(){lbStaffForm(-1)};
+  (function(){
+    var c=$("sx")&&$("sx").parentNode&&$("sx").parentNode.parentNode,ls=$("lbst");
+    if(!c||!ls)return;
+    var pb=document.createElement("div");pb.className="row";pb.style.cssText="margin:16px 0 0";
+    pb.innerHTML='<button id="accpin" type="button" class="ghost">Picker PINs</button>';
+    c.appendChild(pb);
+    var h=document.createElement("h2");h.textContent="Label staff (nicknames and passwords)";h.style.cssText="margin:22px 0 6px;font-size:18px";
+    c.appendChild(h);c.appendChild(ls);
+    var d=ls.querySelector("details");if(d){d.open=true;var sm=d.querySelector("summary");if(sm)sm.hidden=true;d.style.marginTop="0"}
+    $("accpin").onclick=function(){$("hpin").click()};
+  })();
   $("lbSt").onchange=function(){try{localStorage.setItem("labWho",this.value)}catch(e){}$("lbPw").value="";labOK=false;lbAuthUI();lbPreview()};
   $("lbPw").oninput=lbVerify;
   // ----- navigation -----
