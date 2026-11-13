@@ -22,8 +22,14 @@ self.addEventListener("push",function(e){
 self.addEventListener("notificationclick",function(e){
   e.notification.close();
   var url=(e.notification.data&&e.notification.data.url)||"./";
+  var go="",id="";try{var u=new URL(url);go=u.searchParams.get("go")||"";id=u.searchParams.get("id")||""}catch(x){}
   e.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(function(list){
-    for(var i=0;i<list.length;i++){if("focus" in list[i])return list[i].focus()}
+    for(var i=0;i<list.length;i++){
+      if("focus" in list[i]){
+        var c=list[i];
+        return c.focus().then(function(f){try{(f||c).postMessage({alphaGo:go,id:id})}catch(x){}return f});
+      }
+    }
     return clients.openWindow(url);
   }));
 });
