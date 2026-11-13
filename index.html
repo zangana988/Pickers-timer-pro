@@ -2705,7 +2705,7 @@ PLATFORM="zanganam88@gmail.com";
       +'<div id="paMsg"></div>'
       +'<div style="padding:12px;border-radius:10px;border:2px solid '+(on?GRN:"var(--line)")+';font-weight:700;margin-bottom:10px">This device: '+(on?"alerts ON":perm==="denied"?"blocked in the phone settings":"alerts off")+'</div>'
       +(perm==="denied"?'<div class="meta" style="margin-bottom:10px">Open Settings &gt; Notifications &gt; ALPHA Z WMS and allow notifications, then try again.</div>':'')
-      +'<div class="row">'+(on?'<button id="paTest" type="button" class="ghost">Send a test alert</button>':'')+(on?'<button id="paOff" type="button">Turn off on this device</button>':'<button id="paOn" type="button">Turn on alerts on this device</button>')+'<button id="paX" type="button" class="ghost">Close</button></div>'
+      +'<div class="row">'+(on?'<button id="paTest" type="button" class="ghost">Send a test alert</button>':'')+(on?'<button id="paChk" type="button" class="ghost">Check this phone</button>':'')+(on?'<button id="paOff" type="button">Turn off on this device</button>':'<button id="paOn" type="button">Turn on alerts on this device</button>')+'<button id="paX" type="button" class="ghost">Close</button></div>'
       +(isPlat()?'<details id="paSet" style="margin-top:14px"'+(showSet||!cfg.vapid?' open':'')+'><summary>Setup (one time)</summary><div style="margin-top:8px">'
       +'<label class="wide">Web Push key (from Firebase)<input id="paK" autocomplete="off" value="'+esc(cfg.vapid)+'" placeholder="Paste the key pair here"></label>'
       +'<div class="meta" style="margin:4px 0 10px">Firebase console &gt; Project settings &gt; Cloud Messaging &gt; Web Push certificates &gt; Generate key pair.</div>'
@@ -2725,6 +2725,31 @@ PLATFORM="zanganam88@gmail.com";
       if(!key){pm(isPlat()?"Paste the Web Push key in Setup first.":"Alerts are not set up yet. Ask the owner.",true);if($("paSet"))$("paSet").open=true;return}
       bn.disabled=true;pm("Working...");
       pushEnable(cur()).then(function(){paDraw(cur());pm("Alerts are on for this device.")}).catch(function(e){bn.disabled=false;pm((e&&e.message)||String(e),true)});
+    };
+    var bc=$("paChk");
+    if(bc)bc.onclick=function(){
+      bc.disabled=true;pm("Checking...");
+      var L=[];function add(k,v,bad){L.push('<div style="padding:4px 0;'+(bad?"color:"+RED+";font-weight:700":"")+'"><b>'+esc(k)+':</b> '+esc(String(v))+'</div>')}
+      add("Home Screen app",standalone()?"yes":"NO (open it from the Home Screen icon)",!standalone());
+      add("Permission",Notification.permission,Notification.permission!=="granted");
+      navigator.serviceWorker.getRegistrations().then(function(regs){
+        if(!regs.length)add("Background script","none registered",true);
+        var jobs=regs.map(function(r){
+          var sw=r.active||r.waiting||r.installing;
+          add("Background script",(sw?sw.scriptURL.split("/").slice(-2).join("/"):"?")+" ("+(sw?sw.state:"?")+")");
+          return r.pushManager.getSubscription().then(function(s){
+            if(!s)add("Push subscription","MISSING for "+r.scope,true);
+            else{var h="";try{h=new URL(s.endpoint).host}catch(e){}add("Push subscription","ok ("+h+")")}
+          });
+        });
+        return Promise.all(jobs).then(function(){return regs});
+      }).then(function(regs){
+        var r=regs&&regs.filter(function(x){return (x.active&&/firebase-messaging-sw/.test(x.active.scriptURL))})[0]||(regs&&regs[0]);
+        if(!r)throw new Error("no registration");
+        return Promise.resolve(r.showNotification("Local test",{body:"If you see this, the phone itself can show alerts.",tag:"alphas-local"})).then(function(){add("Local test notification","sent: did it appear on the phone?")});
+      }).catch(function(e){add("Local test notification","failed: "+((e&&e.message)||e),true)}).then(function(){
+        bc.disabled=false;var e=$("paMsg");if(e)e.innerHTML='<div style="padding:10px 12px;border-radius:10px;margin-bottom:10px;background:var(--card);border:1px solid var(--line);font-size:14px">'+L.join("")+'</div>';
+      });
     };
     var bt=$("paTest");
     if(bt)bt.onclick=function(){
