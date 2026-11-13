@@ -1693,7 +1693,7 @@ PLATFORM="zanganam88@gmail.com";
     ai.hidden=ab.hidden=ap.hidden||!!window.INBOUND||!ROLE||ROLE==="display"||!!window.SCANNER||/[?&]me=1/.test(location.search);
     if(ap.hidden)page="menu";
     hub.hidden=!(hubU&&page==="menu");ex.hidden=!(can("exp")&&page==="exp");if(typeof wm!=="undefined"&&wm)wm.hidden=!(can("map")&&page==="map");mb.hidden=!hubU;
-    $("hp").hidden=!can("pick");$("he").hidden=!can("exp");$("hm").hidden=!can("map");$("hg").hidden=!can("pal");$("hlab").hidden=!can("lab");$("hpin").hidden=!own;$("hacc").hidden=!own;
+    $("hp").hidden=!can("pick");$("he").hidden=!can("exp");$("hm").hidden=!can("map");$("hg").hidden=!can("pal");$("hlab").hidden=!can("lab");$("hpin").hidden=true;$("hacc").hidden=!own;
     var cu=firebase.auth().currentUser;
     $("hall").hidden=!(cu&&(cu.email||"").toLowerCase()===PLATFORM.toLowerCase());
     $("hpush").hidden=!(cu&&(cu.email||"").toLowerCase()===PLATFORM.toLowerCase());
@@ -3361,7 +3361,7 @@ PLATFORM="zanganam88@gmail.com";
     $("lbPageCss").textContent="@page{size:A3 "+s.or+";margin:5mm}";
     try{lg("Label printed",(s.r.a||"")+" · "+(s.r.s||s.r.p||"")+" · "+s.n+" boxes · exp "+dmy(s.e)+" · "+s.c+" copy · by "+lbName())}catch(x){}
     window.print();
-    $("lbPw").value="";labOK=false;lbAuthUI();       // the next person has to enter the password again
+    lbTouch();                                        // stays unlocked until the idle time ends or Lock is tapped
   }
   function lbSelect(i){
     labSel=i;var r=LAB[i];labLastKey=nk(r.a);
@@ -3404,7 +3404,7 @@ PLATFORM="zanganam88@gmail.com";
   $("lbq").oninput=function(){labQ=this.value;lbDraw()};
   $("lbN").oninput=lbPreview;$("lbE").oninput=lbPreview;$("lbE").onchange=lbPreview;$("lbC").oninput=lbPreview;
   $("lbP").onclick=lbPrint;
-  $("lbX").onclick=function(){labQ="";labSel=-1;labLastKey="";$("lbq").value="";$("lbN").value="";$("lbE").value="";$("lbC").value="1";$("lbHint").textContent="";$("lbPw").value="";labOK=false;lbAuthUI();lbDraw();try{$("lbq").focus()}catch(e){}};
+  $("lbX").onclick=function(){labQ="";labSel=-1;labLastKey="";$("lbq").value="";$("lbN").value="";$("lbE").value="";$("lbC").value="1";$("lbHint").textContent="";lbDraw();try{$("lbq").focus()}catch(e){}};
   var lbRz=0;window.addEventListener("resize",function(){clearTimeout(lbRz);lbRz=setTimeout(function(){if(!lb.hidden&&labSel>=0)lbPreview()},250)});
   // ----- add / edit (manager) -----
   function lbForm(i){
@@ -3499,12 +3499,28 @@ PLATFORM="zanganam88@gmail.com";
   }
   function lbLastWho(){try{return localStorage.getItem("labWho")||""}catch(e){return ""}}
   function lbName(){return LST.length?($("lbSt").value||""):lbWho()}
-  function lbAuthUI(){var e=$("lbAuth");if(e)e.innerHTML=labOK?'<span style="color:var(--ok);font-weight:700">&#10003; Password correct</span>':""}
+  var LOCKMIN=15,lockAt=0,lockT=null;
+  function lbTouch(){lockAt=Date.now()+LOCKMIN*60000;if(!lockT)lockT=setInterval(lbTick,1000);lbAuthUI()}
+  function lbLock(msg){
+    $("lbPw").value="";labOK=false;lockAt=0;if(lockT){clearInterval(lockT);lockT=null}
+    lbAuthUI();if(msg)$("lbNeed").textContent=msg;
+  }
+  function lbTick(){
+    if(!labOK){if(lockT){clearInterval(lockT);lockT=null}return}
+    if(Date.now()>=lockAt)lbLock("Locked after "+LOCKMIN+" minutes without activity. Enter your password again.");else lbAuthUI();
+  }
+  function lbAuthUI(){
+    var e=$("lbAuth");if(!e)return;
+    if(!labOK){e.innerHTML="";return}
+    var left=Math.max(0,Math.ceil((lockAt-Date.now())/1000)),m=Math.floor(left/60),sec=left%60;
+    e.innerHTML='<span style="color:var(--ok);font-weight:700">&#10003; Password correct</span>'+(lockAt?' <span class="meta">&middot; locks in '+m+':'+(sec<10?"0":"")+sec+'</span> <button type="button" id="lbLk" class="ghost" style="padding:6px 12px;font-size:14px;width:auto;min-height:0">Lock now</button>':"");
+    var b=$("lbLk");if(b)b.onclick=function(){lbLock("Locked. Enter your password to print.")};
+  }
   function lbVerify(){
     var v=++labVer,nm=$("lbSt").value,pw=$("lbPw").value;labOK=false;
     var r=LST.filter(function(x){return x.n===nm})[0];
-    if(!r||!pw){lbAuthUI();return Promise.resolve(false)}
-    return lbHash(r.s,pw).then(function(h){if(v!==labVer)return false;labOK=(h===r.h);lbAuthUI();return labOK});
+    if(!r||!pw){lockAt=0;lbAuthUI();return Promise.resolve(false)}
+    return lbHash(r.s,pw).then(function(h){if(v!==labVer)return false;labOK=(h===r.h);if(labOK&&!lockAt)lbTouch();else{if(!labOK)lockAt=0;lbAuthUI()}return labOK});
   }
   function lbStaffDraw(){
     var has=LST.length>0,mgr=labMgr();
@@ -3559,8 +3575,9 @@ PLATFORM="zanganam88@gmail.com";
     var d=ls.querySelector("details");if(d){d.open=true;var sm=d.querySelector("summary");if(sm)sm.hidden=true;d.style.marginTop="0"}
     $("accpin").onclick=function(){$("hpin").click()};
   })();
-  $("lbSt").onchange=function(){try{localStorage.setItem("labWho",this.value)}catch(e){}$("lbPw").value="";labOK=false;lbAuthUI();lbPreview()};
+  $("lbSt").onchange=function(){try{localStorage.setItem("labWho",this.value)}catch(e){}lbLock();lbPreview()};
   $("lbPw").oninput=lbVerify;
+  ["input","click","keydown"].forEach(function(ev){lb.addEventListener(ev,function(){if(labOK&&lockAt)lockAt=Date.now()+LOCKMIN*60000},true)});
   // ----- navigation -----
   $("hlab").onclick=function(){page="lab";sync();lbDraw()};
   $("lbm").onclick=function(){page="menu";sync()};
