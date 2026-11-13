@@ -2851,13 +2851,14 @@ PLATFORM="zanganam88@gmail.com";
     DB.doc("app/pushcfg").onSnapshot(function(d){var x=d.exists?d.data():{};PCFG={vapid:x.vapid||"",worker:String(x.worker||"").replace(/\/+$/,"")}},function(){});
   },1000);
   // supervisor side: ask the alert server to push a message to the picker's scanner
-  window.alphaNotify=function(id,kind){
+  window.alphaNotify=function(id,kind,cb){
+    function done(e,j){try{if(cb)cb(e,j)}catch(x){}}
     try{
-      if(!PCFG.worker||!firebase.auth().currentUser)return;
+      if(!PCFG.worker||!firebase.auth().currentUser){done("alert server address missing");return}
       firebase.auth().currentUser.getIdToken().then(function(tok){
         return fetch(PCFG.worker+"/notify",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+tok},body:JSON.stringify({id:String(id),kind:kind})});
-      }).then(function(r){if(r&&!r.ok)return r.json().then(function(j){throw new Error(j.error||r.status)})}).catch(function(e){try{warn("Could not alert the picker's scanner: "+((e&&e.message)||e))}catch(x){}});
-    }catch(e){}
+      }).then(function(r){return r.json().catch(function(){return {}}).then(function(j){if(!r.ok)throw new Error(j.error||("error "+r.status));done(null,j)})}).catch(function(e){var m=(e&&e.message)||String(e);done(m);if(!cb){try{warn("Could not alert the picker's scanner: "+m)}catch(x){}}});
+    }catch(e){done(String(e))}
   };
   function wake(){try{if(navigator.wakeLock)navigator.wakeLock.request("screen").catch(function(){})}catch(e){}}
 
@@ -2912,7 +2913,10 @@ PLATFORM="zanganam88@gmail.com";
     function mine(){return S.active.filter(function(a){return low(a.name)===low(sel)}).sort(function(x,y){return (x.start+x.mins*60000)-(y.start+y.mins*60000)})}
     function say(t,ms){note=t;noteUntil=Date.now()+(ms||20000)}
     function put(id,obj,okMsg,kind){
-      DB.doc("active/"+id).set(obj,{merge:true}).then(function(){if(okMsg)say(okMsg);if(kind)window.alphaNotify(id,kind)}).catch(function(e){say("Could not send. "+((e&&e.code==="permission-denied")?"This login is not allowed to do that. Ask your manager to use a Supervisor login on the scanners.":((e&&e.message)||e)),30000);draw(true)});
+      DB.doc("active/"+id).set(obj,{merge:true}).then(function(){if(okMsg)say(okMsg);if(kind)window.alphaNotify(id,kind,function(err,j){
+        if(err)say("The supervisor could NOT be alerted by phone ("+err+"). Tell your supervisor.",20000);
+        else if(j&&j.sent===0)say("Sent, but no supervisor phone has alerts turned on. Tell your supervisor.",20000);
+      })}).catch(function(e){say("Could not send. "+((e&&e.code==="permission-denied")?"This login is not allowed to do that. Ask your manager to use a Supervisor login on the scanners.":((e&&e.message)||e)),30000);draw(true)});
     }
     function pickScreen(){
       var r=roster();
