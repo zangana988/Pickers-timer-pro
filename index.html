@@ -1630,7 +1630,7 @@ PLATFORM="zanganam88@gmail.com";
   var bar=$("brand");if(bar){bar.appendChild(mb);bar.appendChild(ab);bar.appendChild(ai)}else{ap.insertBefore(ai,ap.firstChild);ap.insertBefore(ab,ap.firstChild);ap.insertBefore(mb,ap.firstChild)}
   ab.onclick=function(){
     if(!pushSupported()){pushSheet();return}
-    if(myTok()&&Notification.permission==="granted"){
+    if(isOn()){
       ab.disabled=true;ab.textContent="Turning off...";
       pushDisable().then(function(){ab.disabled=false;abLabel()});
       return;
@@ -1647,7 +1647,7 @@ PLATFORM="zanganam88@gmail.com";
       });
     }).catch(function(){ab.disabled=false;abLabel();pushSheet()});
   };
-  setInterval(abLabel,3000);abLabel();
+  setInterval(function(){checkSub();abLabel()},3000);checkSub();abLabel();
 
   function sync(){
     var own=ROLE==="owner"&&!ap.hidden;
@@ -2670,20 +2670,35 @@ PLATFORM="zanganam88@gmail.com";
     DB.doc("app/pushcfg").get().then(function(d){return d.exists?d.data():{}}).catch(function(){return {}}).then(function(cfg){paDraw({vapid:cfg.vapid||"",worker:cfg.worker||""})});
   }
   // turn alerts on for this device (the permission request must run straight from the tap)
+  var subOk=null;
+  function checkSub(){
+    try{navigator.serviceWorker.getRegistrations().then(function(regs){return Promise.all(regs.map(function(r){return r.pushManager.getSubscription()}))}).then(function(a){var ok=a.some(Boolean);if(subOk!==ok){subOk=ok;abLabel()}}).catch(function(){})}catch(e){}
+  }
+  function isOn(){try{return pushSupported()&&!!myTok()&&Notification.permission==="granted"&&subOk!==false}catch(e){return false}}
   function pushEnable(c){
-    var key=c.vapid;
+    var key=c.vapid,old=myTok();
     return Notification.requestPermission().then(function(p){
       if(p!=="granted")throw new Error("Notifications were not allowed. Open Settings > Notifications > ALPHA Z WMS and allow them.");
       return navigator.serviceWorker.register("firebase-messaging-sw.js");
     }).then(function(reg){return navigator.serviceWorker.ready.then(function(r){return r||reg})}).then(function(reg){
-      return firebase.messaging().getToken({vapidKey:key,serviceWorkerRegistration:reg}).then(function(t){return [t,reg]});
+      // always start clean: an old saved address without a live phone registration is what makes alerts vanish
+      return Promise.resolve().then(function(){try{return firebase.messaging().deleteToken()}catch(e){}}).catch(function(){}).then(function(){
+        return firebase.messaging().getToken({vapidKey:key,serviceWorkerRegistration:reg})
+      }).then(function(t){
+        if(!t)throw new Error("No alert address was received. Check the Web Push key.");
+        return reg.pushManager.getSubscription().then(function(s){
+          if(!s)throw new Error("The phone did not register for alerts. Close the app completely, open it again from the Home Screen icon and try again.");
+          return [t,reg];
+        });
+      });
     }).then(function(x){
-      var t=x[0],reg=x[1];if(!t)throw new Error("No alert address was received. Check the Web Push key.");
+      var t=x[0],reg=x[1];
       var u=firebase.auth().currentUser,b=DB.batch();
       b.set(DB.doc("app/"+tokId(t)),{t:t,em:u?u.email:"",at:Date.now(),ua:(navigator.userAgent||"").slice(0,120)});
+      if(old&&tokId(old)!==tokId(t))b.delete(DB.doc("app/"+tokId(old)));
       if(isPlat())b.set(DB.doc("app/pushcfg"),c,{merge:true});
       return b.commit().then(function(){
-        setTok(t);try{lg("Phone alerts on","")}catch(e){}
+        setTok(t);subOk=true;try{lg("Phone alerts on","")}catch(e){}
         try{reg.showNotification("ALPHA Z WMS",{body:"Phone alerts are on. You will get picker requests and the daily expiry message here."})}catch(e){}
         abLabel();
       });
@@ -2692,15 +2707,15 @@ PLATFORM="zanganam88@gmail.com";
   function pushDisable(){
     var t=myTok();
     var p=t?DB.doc("app/"+tokId(t)).delete().catch(function(){}):Promise.resolve();
-    return p.then(function(){try{return firebase.messaging().deleteToken()}catch(e){}}).catch(function(){}).then(function(){setTok("");try{lg("Phone alerts off","")}catch(e){}abLabel()});
+    return p.then(function(){try{return firebase.messaging().deleteToken()}catch(e){}}).catch(function(){}).then(function(){setTok("");subOk=null;try{lg("Phone alerts off","")}catch(e){}abLabel()});
   }
   function abLabel(){
-    var on=false;try{on=pushSupported()&&!!myTok()&&Notification.permission==="granted"}catch(e){}
+    var on=isOn();
     ab.textContent=pushSupported()?(on?"Alerts: ON":"Alerts: OFF"):"Alerts";
     ab.style.fontWeight="700";ab.style.borderColor=on?GRN:"";ab.style.color=on?GRN:"";
   }
   function paDraw(cfg,showSet){
-    var on=!!myTok()&&Notification.permission==="granted",perm=Notification.permission;
+    var on=isOn(),perm=Notification.permission;
     sheet('<h2 style="margin:0 0 4px">Phone alerts</h2><div class="meta" style="margin-bottom:10px">A message on your phone when a picker finishes an order or asks for more time, and every morning for expired or close-to-expiry products. It also arrives when the app is closed.</div>'
       +'<div id="paMsg"></div>'
       +'<div style="padding:12px;border-radius:10px;border:2px solid '+(on?GRN:"var(--line)")+';font-weight:700;margin-bottom:10px">This device: '+(on?"alerts ON":perm==="denied"?"blocked in the phone settings":"alerts off")+'</div>'
