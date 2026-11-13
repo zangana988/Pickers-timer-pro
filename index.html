@@ -1625,8 +1625,9 @@ PLATFORM="zanganam88@gmail.com";
 
   // ---------- menu button on the pickers page ----------
   var ab=document.createElement("button");ab.type="button";ab.className="ghost";ab.textContent="Alerts";ab.hidden=true;ab.style.cssText="margin-left:10px";
+  var ai=document.createElement("button");ai.type="button";ai.className="ghost";ai.textContent="Test";ai.hidden=true;ai.style.cssText="margin-left:8px";ai.onclick=function(){pushSheet()};
   var mb=document.createElement("button");mb.type="button";mb.className="ghost";mb.textContent="Menu";mb.hidden=true;mb.style.cssText="margin-left:14px";
-  var bar=$("brand");if(bar){bar.appendChild(mb);bar.appendChild(ab)}else{ap.insertBefore(ab,ap.firstChild);ap.insertBefore(mb,ap.firstChild)}
+  var bar=$("brand");if(bar){bar.appendChild(mb);bar.appendChild(ab);bar.appendChild(ai)}else{ap.insertBefore(ai,ap.firstChild);ap.insertBefore(ab,ap.firstChild);ap.insertBefore(mb,ap.firstChild)}
   ab.onclick=function(){
     if(!pushSupported()){pushSheet();return}
     if(myTok()&&Notification.permission==="granted"){
@@ -1650,7 +1651,7 @@ PLATFORM="zanganam88@gmail.com";
 
   function sync(){
     var own=ROLE==="owner"&&!ap.hidden;
-    ab.hidden=ap.hidden||!ROLE||ROLE==="display"||!!window.SCANNER||/[?&]me=1/.test(location.search);
+    ai.hidden=ab.hidden=ap.hidden||!ROLE||ROLE==="display"||!!window.SCANNER||/[?&]me=1/.test(location.search);
     if(ap.hidden)page="menu";
     hub.hidden=!(own&&page==="menu");ex.hidden=!(own&&page==="exp");if(typeof wm!=="undefined"&&wm)wm.hidden=!(own&&page==="map");mb.hidden=!own;
     var cu=firebase.auth().currentUser;
@@ -2704,7 +2705,7 @@ PLATFORM="zanganam88@gmail.com";
       +'<div id="paMsg"></div>'
       +'<div style="padding:12px;border-radius:10px;border:2px solid '+(on?GRN:"var(--line)")+';font-weight:700;margin-bottom:10px">This device: '+(on?"alerts ON":perm==="denied"?"blocked in the phone settings":"alerts off")+'</div>'
       +(perm==="denied"?'<div class="meta" style="margin-bottom:10px">Open Settings &gt; Notifications &gt; ALPHA Z WMS and allow notifications, then try again.</div>':'')
-      +'<div class="row">'+(on?'<button id="paOff" type="button">Turn off on this device</button>':'<button id="paOn" type="button">Turn on alerts on this device</button>')+'<button id="paX" type="button" class="ghost">Close</button></div>'
+      +'<div class="row">'+(on?'<button id="paTest" type="button" class="ghost">Send a test alert</button>':'')+(on?'<button id="paOff" type="button">Turn off on this device</button>':'<button id="paOn" type="button">Turn on alerts on this device</button>')+'<button id="paX" type="button" class="ghost">Close</button></div>'
       +(isPlat()?'<details id="paSet" style="margin-top:14px"'+(showSet||!cfg.vapid?' open':'')+'><summary>Setup (one time)</summary><div style="margin-top:8px">'
       +'<label class="wide">Web Push key (from Firebase)<input id="paK" autocomplete="off" value="'+esc(cfg.vapid)+'" placeholder="Paste the key pair here"></label>'
       +'<div class="meta" style="margin:4px 0 10px">Firebase console &gt; Project settings &gt; Cloud Messaging &gt; Web Push certificates &gt; Generate key pair.</div>'
@@ -2724,6 +2725,20 @@ PLATFORM="zanganam88@gmail.com";
       if(!key){pm(isPlat()?"Paste the Web Push key in Setup first.":"Alerts are not set up yet. Ask the owner.",true);if($("paSet"))$("paSet").open=true;return}
       bn.disabled=true;pm("Working...");
       pushEnable(cur()).then(function(){paDraw(cur());pm("Alerts are on for this device.")}).catch(function(e){bn.disabled=false;pm((e&&e.message)||String(e),true)});
+    };
+    var bt=$("paTest");
+    if(bt)bt.onclick=function(){
+      var wk=cfg.worker;if(!wk){pm("The alert server address is missing in Setup.",true);return}
+      bt.disabled=true;pm("Sending a test alert...");
+      firebase.auth().currentUser.getIdToken().then(function(tok){
+        return fetch(wk.replace(/\/+$/,"")+"/notify",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+tok},body:JSON.stringify({kind:"test"})});
+      }).then(function(r){return r.json().then(function(j){return [r.status,j]})}).then(function(x){
+        bt.disabled=false;var j=x[1];
+        if(x[0]!==200)pm("The alert server answered: "+(j.error||x[0])+". If it says 'nothing to send' or 'bad id', the alert server code is old: update it in Cloudflare.",true);
+        else if(!j.total)pm("The server found 0 phones registered for alerts. Turn alerts off and on again on this phone.",true);
+        else if(!j.sent)pm("Found "+j.total+" phone(s) but Google refused: "+(j.errors&&j.errors[0]?j.errors[0].status+" "+j.errors[0].error:"unknown"),true);
+        else pm("Sent to "+j.sent+" of "+j.total+" phone(s). Close the app now: the alert should appear on the phone within seconds.");
+      }).catch(function(e){bt.disabled=false;pm("Could not reach the alert server: "+((e&&e.message)||e),true)});
     };
     var bf=$("paOff");
     if(bf)bf.onclick=function(){
