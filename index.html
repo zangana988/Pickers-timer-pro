@@ -2679,6 +2679,20 @@ PLATFORM="zanganam88@gmail.com";
     try{navigator.serviceWorker.getRegistrations().then(function(regs){return Promise.all(regs.map(function(r){return r.pushManager.getSubscription()}))}).then(function(a){var ok=a.some(Boolean);if(subOk!==ok){subOk=ok;abLabel()}}).catch(function(){})}catch(e){}
   }
   function isOn(){try{return pushSupported()&&!!myTok()&&Notification.permission==="granted"&&subOk!==false}catch(e){return false}}
+  function devId(){try{var d=localStorage.getItem("alphaDev");if(!d){d="d"+Math.random().toString(36).slice(2,10)+Date.now().toString(36);localStorage.setItem("alphaDev",d)}return d}catch(e){return ""}}
+  var UA=(navigator.userAgent||"").slice(0,120);
+  // remove older registrations of THIS phone (same device id, or old ones saved before device ids existed with the same login and phone type)
+  function cleanDup(keepId){
+    var u=firebase.auth().currentUser;if(!u)return Promise.resolve(0);
+    var dev=devId();
+    return DB.collection("app").where("em","==",u.email).get().then(function(q){
+      var b=DB.batch(),n=0;
+      q.docs.forEach(function(d){var x=d.data();if(d.id===keepId||!x.t)return;
+        if(x.pk||x.pkl)return;
+        if((x.dev&&x.dev===dev)||(!x.dev&&x.ua===UA)){b.delete(d.ref);n++}});
+      return n?b.commit().then(function(){return n}):0;
+    }).catch(function(){return 0});
+  }
   function pushEnable(c){
     var key=c.vapid,old=myTok();
     return Notification.requestPermission().then(function(p){
@@ -2698,11 +2712,11 @@ PLATFORM="zanganam88@gmail.com";
     }).then(function(x){
       var t=x[0],reg=x[1];
       var u=firebase.auth().currentUser,b=DB.batch();
-      b.set(DB.doc("app/"+tokId(t)),{t:t,em:u?u.email:"",at:Date.now(),ua:(navigator.userAgent||"").slice(0,120)});
+      b.set(DB.doc("app/"+tokId(t)),{t:t,em:u?u.email:"",at:Date.now(),ua:UA,dev:devId()});
       if(old&&tokId(old)!==tokId(t))b.delete(DB.doc("app/"+tokId(old)));
       if(isPlat())b.set(DB.doc("app/pushcfg"),c,{merge:true});
       return b.commit().then(function(){
-        setTok(t);subOk=true;try{lg("Phone alerts on","")}catch(e){}
+        setTok(t);subOk=true;cleanDup(tokId(t));try{lg("Phone alerts on","")}catch(e){}
         try{reg.showNotification("ALPHA Z WMS",{body:"Phone alerts are on. You will get picker requests and the daily expiry message here."})}catch(e){}
         abLabel();
       });
@@ -2750,8 +2764,9 @@ PLATFORM="zanganam88@gmail.com";
       bc.disabled=true;pm("Checking...");
       var L=[];function add(k,v,bad){L.push('<div style="padding:4px 0;'+(bad?"color:"+RED+";font-weight:700":"")+'"><b>'+esc(k)+':</b> '+esc(String(v))+'</div>')}
       add("Home Screen app",standalone()?"yes":"NO (open it from the Home Screen icon)",!standalone());
+      var mt=myTok();var dupP=cleanDup(mt?tokId(mt):"").then(function(n){if(n)add("Duplicate registrations removed",n)});
       add("Permission",Notification.permission,Notification.permission!=="granted");
-      navigator.serviceWorker.getRegistrations().then(function(regs){
+      dupP.then(function(){return navigator.serviceWorker.getRegistrations()}).then(function(regs){
         if(!regs.length)add("Background script","none registered",true);
         var jobs=regs.map(function(r){
           var sw=r.active||r.waiting||r.installing;
