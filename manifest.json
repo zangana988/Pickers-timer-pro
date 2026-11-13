@@ -1,6 +1,6 @@
 {
- "name": "ALPHA WMS",
- "short_name": "ALPHA WMS",
+ "name": "ALPHA Z WMS",
+ "short_name": "ALPHA Z WMS",
  "start_url": "./",
  "scope": "./",
  "display": "standalone",
