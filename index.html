@@ -2878,7 +2878,7 @@ PLATFORM="zanganam88@gmail.com";
     });
   }
   $("hpin").onclick=function(){pinsSheet()};
-  (function(){var sb=$("stb");if(sb&&sb.parentNode)sb.parentNode.style.display="none";$("hacc").onclick=function(){var x=$("stb");if(x)x.click()}})();
+  (function(){var sb=$("stb");if(sb&&sb.parentNode)sb.parentNode.style.display="none";$("hacc").onclick=function(){var x=$("stb");if(x)x.click();try{if(typeof labSub==="function")labSub();lbStaffDraw();$("lbst").hidden=ROLE!=="owner"}catch(e){}}})();
 
   // =================== Product palletization guide ===================
   var PAL=[],PALM={n:0},palOn=false,palRaw=[],palQ="",palLim=60,palSeq=0,PCH=400,palLoaded=false,palImp=null,palOpen={};
