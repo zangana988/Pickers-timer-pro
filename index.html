@@ -3598,7 +3598,7 @@ PLATFORM="zanganam88@gmail.com";
     var sel=ls(LSK),pinFor="",pinBuf="",pinMsg="",pinFails=0,pinLock=0,pendSeen={},seen={},first=true,alarmed={},resSeen={},note="",noteUntil=0,mode="",confirmFin=false,moreOpen=false,lastKey="";
     var ov=document.createElement("div");ov.hidden=true;
     ov.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:90;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 14px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column";
-    ov.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div id="mwho" style="font-size:24px;font-weight:800;overflow-wrap:anywhere"></div><div id="mclk" style="font-size:24px;font-weight:700"></div></div>'
+    ov.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div id="mwho" style="font-size:24px;font-weight:800;overflow-wrap:anywhere"></div><div style="display:flex;align-items:center;gap:12px"><div id="mclk" style="font-size:24px;font-weight:700"></div><button id="mso" type="button" class="ghost" style="font-size:16px;padding:8px 14px;min-height:0">Sign out</button></div></div>'
       +'<div id="mtop" style="margin-top:6px"></div><div id="mnote"></div><div id="malert"></div><div id="mbody" style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px;margin:10px 0"></div>'
       +'<div id="mfoot" class="row" style="gap:10px"></div>';
     document.body.appendChild(ov);
@@ -3759,6 +3759,7 @@ PLATFORM="zanganam88@gmail.com";
     }
     // pickers never see a sign-in or sign-out button; the manager taps the clock 7 times quickly to sign this scanner out
     var ct=0,cl=0;
+    $m("mso").onclick=function(){if(confirm("Sign out of this picker account?"))firebase.auth().signOut().then(function(){location.reload()})};
     $m("mclk").onclick=function(){var n=Date.now();ct=(n-cl<2500)?ct+1:1;cl=n;if(ct>=7){ct=0;if(confirm("Sign this scanner out? Only a manager should do this."))firebase.auth().signOut().then(function(){location.reload()})}};
     setInterval(function(){draw(false)},1000);draw(true);
     wake();document.addEventListener("visibilitychange",function(){if(!document.hidden)wake()});
