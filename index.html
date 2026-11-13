@@ -2894,30 +2894,75 @@ PLATFORM="zanganam88@gmail.com";
     for(r=1;r<=l;r++){if(l%r)continue;var c=l/r;if(c<r)continue;var sc=Math.abs(c/r-ratio);if(sc<bs){bs=sc;best=[c,r]}}
     return best;
   }
+  // ----- realistic 3D pallet: separate cartons (tape, label, shading) on a real pallet (deck boards, blocks, bottom boards) -----
   function pal3d(r,id){
-    var pt=PT[palType(r.t)]||PT.EUR,g=palGrid(r.l,pt.ratio),cols=g[0],rows=g[1],lay=Math.min(r.y,40),bw=1.2,bd=0.8,bh=0.8;
-    var tw=cols*bw,td=rows*bd,th=lay*bh,sc=Math.min(190/tw,190/td,170/th,60),W=Math.round(tw*sc),D=Math.round(td*sc),H=Math.round(th*sc);
-    var line="#6b4a1f",box="#cf9f5e",top="#e0b878",side="#b98a4d";
-    function grid(w,h,nx,ny,bg){return 'width:'+w+'px;height:'+h+'px;background-color:'+bg+';background-image:linear-gradient(to right,'+line+' 2px,transparent 2px),linear-gradient(to bottom,'+line+' 2px,transparent 2px);background-size:'+(w/nx)+'px '+(h/ny)+'px;border:2px solid '+line+';box-sizing:border-box'}
-    function face(t,css){return '<div style="position:absolute;left:0;top:0;backface-visibility:hidden;'+css+';transform:'+t+'"></div>'}
-    var PB=14,PW=W+14,PD=D+14,base=[
-      face('translate(-'+PW/2+'px,'+(H/2-PD/2)+'px) rotateX(90deg)','width:'+PW+'px;height:'+PD+'px;background:#b88a52;border:1px solid #5b3d1c;box-sizing:border-box'),
-      face('translate(-'+PW/2+'px,'+(H/2)+'px) translateZ('+PD/2+'px)','width:'+PW+'px;height:'+PB+'px;background:#9a6b3a;border:1px solid #5b3d1c;box-sizing:border-box'),
-      face('translate(-'+PW/2+'px,'+(H/2)+'px) rotateY(180deg) translateZ('+PD/2+'px)','width:'+PW+'px;height:'+PB+'px;background:#9a6b3a;border:1px solid #5b3d1c;box-sizing:border-box'),
-      face('translate(-'+PD/2+'px,'+(H/2)+'px) rotateY(90deg) translateZ('+PW/2+'px)','width:'+PD+'px;height:'+PB+'px;background:#8a5d30;border:1px solid #5b3d1c;box-sizing:border-box'),
-      face('translate(-'+PD/2+'px,'+(H/2)+'px) rotateY(-90deg) translateZ('+PW/2+'px)','width:'+PD+'px;height:'+PB+'px;background:#8a5d30;border:1px solid #5b3d1c;box-sizing:border-box')
-    ].join("");
-    var f=[
-      face('translate(-'+W/2+'px,-'+H/2+'px) translateZ('+D/2+'px)',grid(W,H,cols,lay,box)),
-      face('translate(-'+W/2+'px,-'+H/2+'px) rotateY(180deg) translateZ('+D/2+'px)',grid(W,H,cols,lay,box)),
-      face('translate(-'+D/2+'px,-'+H/2+'px) rotateY(90deg) translateZ('+W/2+'px)',grid(D,H,rows,lay,side)),
-      face('translate(-'+D/2+'px,-'+H/2+'px) rotateY(-90deg) translateZ('+W/2+'px)',grid(D,H,rows,lay,side)),
-      face('translate(-'+W/2+'px,-'+D/2+'px) rotateX(90deg) translateZ('+H/2+'px)',grid(W,D,cols,rows,top))
-    ].join("");
-    var hh=Math.max(H+PB+60,150);
-    return '<div class="p3" data-p3="'+id+'" style="height:'+(hh+66)+'px;perspective:800px;touch-action:none;position:relative;overflow:hidden;margin-top:12px;border-radius:12px;background:var(--bg);cursor:grab">'
-      +'<div class="p3r" style="position:absolute;left:50%;top:'+(hh/2+10)+'px;width:0;height:0;transform-style:preserve-3d;transform:rotateX(-22deg) rotateY(-35deg)"><div class="p3s" style="transform-style:preserve-3d;animation:p3spin 16s linear infinite">'+f+base+'</div></div>'
-      +'<div style="position:absolute;left:10px;bottom:8px;font-size:13px;font-weight:700;opacity:.8">'+(PT[palType(r.t)]?pt.n+' '+pt.d+' &middot; ':'')+cols+' &times; '+rows+' per layer &times; '+lay+' layers &middot; drag to turn</div></div>';
+    var pt=PT[palType(r.t)]||PT.EUR,isEur=palType(r.t)!=="Block";
+    var g=palGrid(r.l,pt.ratio),cols=g[0],rows=g[1],lay=Math.min(r.y,40);
+    var PL=120,PDp=isEur?80:100;                      // pallet size in cm (length x width)
+    var bw=PL/cols,bd=PDp/rows,bh=Math.max(11,Math.min(34,Math.min(bw,bd)*0.8));
+    var HS=lay*bh,PH=14.4,sc=Math.min(2.4,215/Math.max(PL,HS+PH));
+    var f1=function(v){return Math.round(v*sc*10)/10};
+    function F(css,t){return '<div style="position:absolute;left:0;top:0;backface-visibility:hidden;'+css+';transform:'+t+'"></div>'}
+    // one face of a cuboid; cx,cy,cz = centre (cm), w,h,d = size (cm); y points down
+    function face(side,cx,cy,cz,w,h,d,bg,extra){
+      var W=f1(w),H=f1(h),D=f1(d),X=f1(cx),Y=f1(cy),Z=f1(cz),st=(extra||"");
+      if(side==="f")return F('width:'+W+'px;height:'+H+'px;background:'+bg+';'+st,'translate3d('+(X-W/2)+'px,'+(Y-H/2)+'px,'+(Z+D/2)+'px)');
+      if(side==="b")return F('width:'+W+'px;height:'+H+'px;background:'+bg+';'+st,'translate3d('+(X-W/2)+'px,'+(Y-H/2)+'px,'+(Z-D/2)+'px) rotateY(180deg)');
+      if(side==="r")return F('width:'+D+'px;height:'+H+'px;background:'+bg+';'+st,'translate3d('+(X+W/2-D/2)+'px,'+(Y-H/2)+'px,'+Z+'px) rotateY(90deg)');
+      if(side==="l")return F('width:'+D+'px;height:'+H+'px;background:'+bg+';'+st,'translate3d('+(X-W/2-D/2)+'px,'+(Y-H/2)+'px,'+Z+'px) rotateY(-90deg)');
+      return F('width:'+W+'px;height:'+D+'px;background:'+bg+';'+st,'translate3d('+(X-W/2)+'px,'+(Y-H/2-D/2)+'px,'+Z+'px) rotateX(90deg)');
+    }
+    var out=[],k,c,q;
+    // ---- cartons (only the faces you can see) ----
+    var edge='border:1px solid rgba(80,52,20,.62);box-sizing:border-box;box-shadow:inset 0 0 7px rgba(0,0,0,.22)';
+    var seam='linear-gradient(rgba(80,52,20,.38),rgba(80,52,20,.38)) 0 16%/100% 1px no-repeat';
+    var lbl='linear-gradient(#f4f1e8,#f4f1e8) 64% 70%/34% 30% no-repeat,linear-gradient(rgba(60,60,60,.55),rgba(60,60,60,.55)) 68% 76%/24% 2px no-repeat,linear-gradient(rgba(60,60,60,.45),rgba(60,60,60,.45)) 68% 84%/18% 2px no-repeat';
+    for(k=0;k<lay;k++){
+      var base=k%2?"#cfa062":"#c8975a",cy=-(k+0.5)*bh;
+      var bgF=lbl+','+seam+',linear-gradient(180deg,rgba(255,255,255,.16),rgba(0,0,0,.10)),'+base;
+      var bgB=seam+',linear-gradient(rgba(0,0,0,.10),rgba(0,0,0,.10)),linear-gradient(180deg,rgba(255,255,255,.10),rgba(0,0,0,.14)),'+base;
+      var bgR=seam+',linear-gradient(rgba(0,0,0,.13),rgba(0,0,0,.13)),linear-gradient(180deg,rgba(255,255,255,.08),rgba(0,0,0,.12)),'+base;
+      var bgL=seam+',linear-gradient(rgba(0,0,0,.20),rgba(0,0,0,.20)),linear-gradient(180deg,rgba(255,255,255,.06),rgba(0,0,0,.12)),'+base;
+      var bgT='linear-gradient(90deg,transparent 43%,#b3864a 43%,#b3864a 57%,transparent 57%),linear-gradient(rgba(255,255,255,.16),rgba(255,255,255,.16)),'+base;
+      for(c=0;c<cols;c++)for(q=0;q<rows;q++){
+        var cx=-PL/2+(c+0.5)*bw,cz=-PDp/2+(q+0.5)*bd;
+        if(q===rows-1)out.push(face("f",cx,cy,cz,bw,bh,bd,bgF,edge));
+        if(q===0)out.push(face("b",cx,cy,cz,bw,bh,bd,bgB,edge));
+        if(c===cols-1)out.push(face("r",cx,cy,cz,bw,bh,bd,bgR,edge));
+        if(c===0)out.push(face("l",cx,cy,cz,bw,bh,bd,bgL,edge));
+        if(k===lay-1)out.push(face("t",cx,cy,cz,bw,bh,bd,bgT,edge));
+      }
+    }
+    // ---- stretch wrap (thin, see-through) ----
+    var wrap='repeating-linear-gradient(172deg,rgba(255,255,255,.13) 0 5px,rgba(255,255,255,.03) 5px 11px);pointer-events:none',o=0.5;
+    out.push(face("f",0,-HS/2,0,PL+o,HS,PDp+o,wrap));out.push(face("b",0,-HS/2,0,PL+o,HS,PDp+o,wrap));
+    out.push(face("r",0,-HS/2,0,PL+o,HS,PDp+o,wrap));out.push(face("l",0,-HS/2,0,PL+o,HS,PDp+o,wrap));
+    // ---- pallet ----
+    var wood=isEur?["#dcb98c","#c9a373","#b58f5f"]:["#c7a06c","#b38b58","#9d7746"],
+        grain=function(c){return 'repeating-linear-gradient(90deg,rgba(90,60,25,.10) 0 2px,rgba(0,0,0,0) 2px 7px),'+c};
+    var DK=2.2,BL=10,BM=2.2;                          // deck board, block, bottom board thickness (cm)
+    function part(x,y,z,w,h,d,tops,fb){               // y = top of the part (cm below the carton stack)
+      var cy=y+h/2;
+      out.push(face("f",x,cy,z,w,h,d,grain(wood[0]),'border:1px solid rgba(70,45,18,.55);box-sizing:border-box'));
+      out.push(face("b",x,cy,z,w,h,d,grain(wood[1]),'border:1px solid rgba(70,45,18,.55);box-sizing:border-box'));
+      out.push(face("r",x,cy,z,w,h,d,grain(wood[2]),'border:1px solid rgba(70,45,18,.55);box-sizing:border-box'));
+      out.push(face("l",x,cy,z,w,h,d,grain(wood[2]),'border:1px solid rgba(70,45,18,.55);box-sizing:border-box'));
+      if(tops)out.push(face("t",x,cy,z,w,h,d,grain(wood[0]),'border:1px solid rgba(70,45,18,.55);box-sizing:border-box'));
+    }
+    var nb=7,bwid=12.5,gapx=(PL-nb*bwid)/(nb-1),i2;
+    for(i2=0;i2<nb;i2++)part(-PL/2+bwid/2+i2*(bwid+gapx),0,0,bwid,DK,PDp,true);          // top deck boards
+    var bx=[-(PL/2-7.25),0,PL/2-7.25],bz=[-(PDp/2-7.5),0,PDp/2-7.5];
+    bx.forEach(function(x){bz.forEach(function(z){part(x,DK,z,14.5,BL,15)})});          // 9 blocks
+    bx.forEach(function(x){part(x,DK+BL,0,14.5,BM,PDp,false)});                           // bottom boards
+    // EUR brand mark on the front middle block
+    if(isEur)out.push(F('width:'+f1(10)+'px;height:'+f1(5)+'px;color:#4a2f12;font:900 '+Math.max(5,f1(3.2))+'px/'+f1(5)+'px sans-serif;text-align:center;letter-spacing:.5px','translate3d('+f1(-5)+'px,'+f1(DK+2)+'px,'+(f1(PDp/2-7.5+7.5)+0.5)+'px)').replace('></div>','>EUR</div>'));
+    // ground shadow
+    var sw=f1(PL*1.35),sd=f1(PDp*1.35);
+    var shadow=F('width:'+sw+'px;height:'+sd+'px;background:radial-gradient(ellipse at center,rgba(0,0,0,.30),rgba(0,0,0,0) 68%);backface-visibility:visible','translate3d('+(-sw/2)+'px,'+(f1(DK+BL+BM)-sd/2+1)+'px,0px) rotateX(90deg)');
+    var totalH=f1(HS+PH),hh=Math.max(totalH+112,250);
+    return '<div class="p3" data-p3="'+id+'" style="height:'+hh+'px;perspective:1100px;touch-action:none;position:relative;overflow:hidden;margin-top:12px;border-radius:12px;background:linear-gradient(#e9eff8,var(--bg));cursor:grab">'
+      +'<div class="p3r" style="position:absolute;left:50%;top:'+Math.round((hh-34)/2+(f1(HS)-f1(PH))/2)+'px;width:0;height:0;transform-style:preserve-3d;transform:rotateX(-20deg) rotateY(-32deg)"><div class="p3s" style="transform-style:preserve-3d;animation:p3spin 18s linear infinite">'+shadow+out.join("")+'</div></div>'
+      +'<div style="position:absolute;left:10px;bottom:8px;right:10px;font-size:13px;font-weight:700;opacity:.85">'+(PT[palType(r.t)]?pt.n+' '+pt.d+' &middot; ':'')+cols+' &times; '+rows+' per layer &times; '+lay+' layers &middot; drag to turn</div></div>';
   }
   (function(){var st=document.createElement("style");st.textContent="@keyframes p3spin{from{transform:rotateY(0)}to{transform:rotateY(360deg)}}";document.head.appendChild(st)})();
   function pal3dBind(root){
@@ -2955,7 +3000,7 @@ PLATFORM="zanganam88@gmail.com";
     var searching=toks.length>0,v3=0;
     $("pgl").innerHTML=out.slice(0,palLim).map(function(i){
       var r=PAL[i],tot=r.n||(+r.l||0)*(+r.y||0),inf=[];
-      var show3=r.l>0&&r.y>0&&((searching&&v3++<5)||palOpen[i]);
+      var show3=r.l>0&&r.y>0&&((searching&&v3++<3)||palOpen[i]);
       return '<div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px">'
         +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div style="min-width:0"><div style="font-weight:800;font-size:19px;overflow-wrap:anywhere">'+esc(r.p||r.a||"")+'</div>'+(r.a&&r.p?'<div class="meta" style="font-size:15px">'+esc(r.a)+'</div>':"")+ptBadge(r.t)+'</div>'
         +(mgr?'<button type="button" class="ghost" data-pe="'+i+'" style="width:auto;flex:none">Edit</button>':"")+'</div>'
