@@ -1680,7 +1680,7 @@ PLATFORM="zanganam88@gmail.com";
     var own=ROLE==="owner"&&!ap.hidden;
     var PG=(!own&&!ap.hidden&&ROLE!=="owner"&&window.PAGES)||null;          // pages ticked for this person (null = manager or a plain screen)
     var can=function(k){return own||(!!PG&&PG.indexOf(k)>=0)};
-    var light=!!PG&&PG.every(function(k){return k==="pal"||k==="lab"});     // only the guide and/or labels: no menu, direct links
+    var light=!!PG&&PG.length===1&&(PG[0]==="pal"||PG[0]==="lab");     // only the guide and/or labels: no menu, direct links
     var hubU=own||(!!PG&&!light&&(PG.length>1||PG[0]==="exp"||PG[0]==="map"));
     hubUser=hubU;lightUser=light;
     if(light&&page==="menu")page=PG.indexOf("pal")>=0?"pal":"lab";
