@@ -1,6 +1,6 @@
 // ALPHA Z WMS: shows a phone notification for every alert, also when the app is closed.
 // iPhone / iPad Home Screen apps require a notification for EVERY push, so this file shows it itself
-// (same tag as the Firebase handler, so nothing appears twice).
+// (Firebase's own display handler is not used, so each alert appears once).
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js","https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js");
 firebase.initializeApp({apiKey:"AIzaSyCzS3Szv_JcVMYGQFlz3VmESNLwW1xiL0E",authDomain:"pickers-timer.firebaseapp.com",projectId:"pickers-timer",messagingSenderId:"928812160632",appId:"1:928812160632:web:eed8ef63a89f7f9f2e3f8d"});
 var messaging=firebase.messaging();
@@ -11,7 +11,7 @@ function show(d){
   if(k){o.renotify=true;o.requireInteraction=true;o.vibrate=k==="warn"?[500,150,500,150,500,150,500]:[300,100,300,100,300]}
   return self.registration.showNotification(d.title||"ALPHA Z WMS",o);
 }
-messaging.onBackgroundMessage(function(p){return show((p&&p.data)||{})});
+// (no onBackgroundMessage here: the direct push handler below shows each alert exactly once)
 // direct handler: guarantees a visible notification on iPhone / iPad
 self.addEventListener("push",function(e){
   var j=null;try{j=e.data&&e.data.json()}catch(x){}
