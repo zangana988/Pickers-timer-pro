@@ -3,6 +3,8 @@
 // (Firebase's own display handler is not used, so each alert appears once).
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js","https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js");
 firebase.initializeApp({apiKey:"AIzaSyCzS3Szv_JcVMYGQFlz3VmESNLwW1xiL0E",authDomain:"pickers-timer.firebaseapp.com",projectId:"pickers-timer",messagingSenderId:"928812160632",appId:"1:928812160632:web:eed8ef63a89f7f9f2e3f8d"});
+self.addEventListener("install",function(){self.skipWaiting()});
+self.addEventListener("activate",function(e){e.waitUntil(self.clients.claim())});
 var messaging=firebase.messaging();
 function show(d){
   d=d||{};
