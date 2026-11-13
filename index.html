@@ -1662,6 +1662,10 @@ PLATFORM="zanganam88@gmail.com";
   new MutationObserver(sync).observe(ap,{attributes:true,attributeFilter:["hidden"]});
   window.addEventListener("rolechange",sync);
   $("hp").onclick=function(){page="pick";sync()};
+  // opened from a phone notification: show the pickers page (the confirm / approve buttons are on top of it)
+  function goPick(){if(ROLE==="owner"){page="pick";sync()}try{window.scrollTo(0,0)}catch(e){}}
+  if(/[?&]go=pickers/.test(location.search)){var gt0=0,gi=setInterval(function(){if(ROLE){goPick();clearInterval(gi)}else if(++gt0>40)clearInterval(gi)},250)}
+  try{navigator.serviceWorker.addEventListener("message",function(e){if(e.data&&e.data.alphaGo==="pickers")goPick()})}catch(e){}
   $("he").onclick=function(){page="exp";sync();draw()};
   mb.onclick=function(){page="menu";sync()};
   $("exm").onclick=function(){page="menu";sync()};
