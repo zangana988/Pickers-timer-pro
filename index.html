@@ -1354,7 +1354,8 @@ rr();render();stats();setInterval(render,1000);
           +'<button data-a="open" data-c="'+esc(d.id)+'" type="button">Open</button>'
           +'<button class="ghost" data-a="mgr" data-c="'+esc(d.id)+'" type="button">Manager access</button>'
           +'<button class="ghost" data-a="imp" data-c="'+esc(d.id)+'" type="button">Import old data</button>'
-          +'<button class="ghost" data-a="sus" data-c="'+esc(d.id)+'" data-on="'+(off?"1":"0")+'" type="button">'+(off?"Resume":"Suspend")+'</button></div></div>';
+          +'<button class="ghost" data-a="sus" data-c="'+esc(d.id)+'" data-on="'+(off?"1":"0")+'" type="button">'+(off?"Resume":"Suspend")+'</button>'
+          +'<button class="ghost" data-a="del" data-c="'+esc(d.id)+'" type="button" style="color:#c0392b;border-color:#c0392b">Delete</button></div></div>';
       }).join("");
       $("ocl").innerHTML=h||'<div class="empty">No companies yet. Tap "Add a company" below.</div>';
     }).catch(function(e){$("ocl").textContent="Could not load: "+((e&&e.message)||e)});
@@ -1365,12 +1366,50 @@ rr();render();stats();setInterval(render,1000);
     if(a==="open")openCo(id);
     else if(a==="mgr")mgrOpen(id);
     else if(a==="imp")importOld(id);
+    else if(a==="del")delCo(id);
     else if(a==="sus"){var on=b.dataset.on==="1";if(!confirm((on?"Resume ":"Suspend ")+id+"?"))return;RAW.doc("companies/"+id).update({active:on}).then(lst).catch(dbe)}
   });
+  // ask the owner for their password (field is hidden as dots) and check it with Firebase
+  function askPw(msg){
+    return new Promise(function(res,rej){
+      var u=firebase.auth().currentUser;
+      var o=document.createElement("div");
+      o.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:120;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:20px";
+      o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:16px;padding:20px;max-width:360px;width:100%"><h2 style="margin:0 0 8px">Confirm with your password</h2><div class="meta" style="margin-bottom:10px">'+esc(msg)+'</div><input id="apw" type="password" autocomplete="current-password" placeholder="Your owner password"><div id="apm" class="meta" style="color:#c0392b;min-height:18px;margin-top:6px"></div><div class="row"><button id="apo" type="button">Confirm</button><button id="apc" type="button" class="ghost">Cancel</button></div></div>';
+      document.body.appendChild(o);
+      function done(){o.remove()}
+      $("apc").onclick=function(){done();rej("cancel")};
+      $("apo").onclick=function(){
+        var pw=$("apw").value;if(!pw)return;
+        $("apo").disabled=true;
+        u.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(u.email,pw)).then(function(){done();res()}).catch(function(){$("apm").textContent="Wrong password.";$("apo").disabled=false;$("apw").value=""});
+      };
+      $("apw").focus();
+    });
+  }
+  // ----- delete a company and everything in it (cannot be undone) -----
+  function delCo(id){
+    if(!confirm("Delete company "+id+" and ALL its data (orders, records, expirations, map, staff access)? This cannot be undone."))return;
+    var t=prompt("To confirm, type the company ID: "+id);
+    if(t===null)return;
+    if(String(t).trim().toLowerCase()!==id.toLowerCase()){alert("The ID did not match. Nothing was deleted.");return}
+    askPw("Deleting company "+id+" cannot be undone.").then(function(){return doDel(id)}).catch(function(e){if(e!=="cancel")dbe(e)});
+  }
+  function doDel(id){
+    var cols=["active","app","hist","log","audit","people"];
+    return Promise.all(cols.map(function(c){return RAW.collection("companies/"+id+"/"+c).get()}).concat([RAW.collection("members").where("cid","==",id).get()])).then(function(rs){
+      var all=[];
+      rs.forEach(function(r,i){r.docs.forEach(function(d){all.push(i<cols.length?RAW.doc("companies/"+id+"/"+cols[i]+"/"+d.id):RAW.doc("members/"+d.id))})});
+      all.push(RAW.doc("companies/"+id));
+      var chain=Promise.resolve();
+      for(var k=0;k<all.length;k+=400){(function(part){chain=chain.then(function(){var bb=RAW.batch();part.forEach(function(r){bb.delete(r)});return bb.commit()})})(all.slice(k,k+400))}
+      return chain.then(function(){return all.length});
+    }).then(function(n){alert("Company "+id+" was deleted ("+n+" records).");lst()});
+  }
   function create(){
     var name=$("pn").value.trim(),id=slug($("pi").value||name),nm=$("po").value.trim(),em=$("pe").value.trim().toLowerCase();
     if(!name||!id||!nm||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){alert("Fill in the company name, ID, manager name and a valid manager email.");return}
-    Promise.all([RAW.doc("companies/"+id).get(),RAW.doc("members/"+em).get()]).then(function(r){
+    askPw("Adding company "+name+".").then(function(){return Promise.all([RAW.doc("companies/"+id).get(),RAW.doc("members/"+em).get()]).then(function(r){
       if(r[0].exists){alert("A company with this ID already exists.");return}
       if(r[1].exists){alert("This email already belongs to a company.");return}
       var u=firebase.auth().currentUser,b=RAW.batch(),now=Date.now();
@@ -1378,7 +1417,7 @@ rr();render();stats();setInterval(render,1000);
       b.set(RAW.doc("members/"+em),{email:em,cid:id,role:"owner",name:nm,by:u.email,at:now});
       b.set(RAW.doc("companies/"+id+"/people/"+em),{email:em,name:nm,role:"owner"});seedB(b,id);
       return b.commit().then(function(){alert("Company created. The manager can now open the app, choose I am with a company, tap First time? Create my password, and sign in.");ownerDraw()});
-    }).catch(dbe);
+    })}).catch(function(e){if(e!=="cancel")dbe(e)});
   }
   // ----- grant or remove manager access for a company -----
   function mgrOpen(id){
@@ -2945,6 +2984,7 @@ PLATFORM="zanganam88@gmail.com";
   }
   setInterval(paintN,700);
 })();
+
 window.__ALPHA_END=1;
 </script>
 </body>
