@@ -328,6 +328,7 @@ rr();render();stats();setInterval(render,1000);
   firebase.auth().onAuthStateChanged(gate);
   function go(){
     if(started)return;started=true;
+    if(ROLE==="owner"&&window.seedMissing)window.seedMissing(CID);
     var tm0=setTimeout(function(){warn("Cannot reach the shared data yet. Showing what was loaded before.")},10000);
     function ok(){clearTimeout(tm0);warn("")}
     function er(e){clearTimeout(tm0);warn(e&&e.code==="permission-denied"?"Access denied. Ask your manager to check your access, then sign out and in.":"Shared data error: "+(e&&e.code))}
@@ -1210,7 +1211,7 @@ rr();render();stats();setInterval(render,1000);
       var u=firebase.auth().currentUser,b=RAW.batch(),now=Date.now();
       b.set(RAW.doc("companies/"+id),{name:name,active:true,owner:em,createdAt:now,settings:{}});
       b.set(RAW.doc("members/"+em),{email:em,cid:id,role:"owner",name:nm,by:u.email,at:now});
-      b.set(RAW.doc("companies/"+id+"/people/"+em),{email:em,name:nm,role:"owner"});
+      b.set(RAW.doc("companies/"+id+"/people/"+em),{email:em,name:nm,role:"owner"});seedB(b,id);
       return b.commit().then(function(){alert("Company created. The manager can now open the app, tap First time? Create my password, and sign in.");draw()});
     }).catch(dbe);
   }
@@ -1315,9 +1316,19 @@ rr();render();stats();setInterval(render,1000);
     return md;
   }
   var mm=mkModal("Manager access","mmx","mmb"),mmC=null;
+  // every company starts with the same empty pages as the first one (pickers, expirations, broken list, warehouse map)
+  var SEED={roster:{list:[]},expmeta:{n:0},brkmeta:{n:0},mapmeta:{n:0}};
+  window.seedB=function(b,cid){Object.keys(SEED).forEach(function(k){b.set(RAW.doc("companies/"+cid+"/app/"+k),JSON.parse(JSON.stringify(SEED[k])))})};
+  function seedMissing(cid){
+    return Promise.all(Object.keys(SEED).map(function(k){
+      var r=RAW.doc("companies/"+cid+"/app/"+k);
+      return r.get().then(function(x){if(!x.exists)return r.set(JSON.parse(JSON.stringify(SEED[k])))});
+    })).catch(function(){});
+  }
+  window.seedMissing=seedMissing;
   function openCo(id){
     var u=firebase.auth().currentUser;
-    RAW.doc("members/"+PLATFORM).set({email:PLATFORM,cid:id,role:"owner",name:"Platform owner",by:u.email,at:Date.now()}).then(function(){location.reload()}).catch(dbe);
+    RAW.doc("members/"+PLATFORM).set({email:PLATFORM,cid:id,role:"owner",name:"Platform owner",by:u.email,at:Date.now()}).then(function(){return seedMissing(id)}).then(function(){location.reload()}).catch(dbe);
   }
   function ownerDraw(){
     ow.innerHTML='<h2 style="margin-top:0">Your companies</h2><div id="ocl" class="meta">Loading...</div>'
@@ -1365,7 +1376,7 @@ rr();render();stats();setInterval(render,1000);
       var u=firebase.auth().currentUser,b=RAW.batch(),now=Date.now();
       b.set(RAW.doc("companies/"+id),{name:name,active:true,owner:em,createdAt:now,settings:{}});
       b.set(RAW.doc("members/"+em),{email:em,cid:id,role:"owner",name:nm,by:u.email,at:now});
-      b.set(RAW.doc("companies/"+id+"/people/"+em),{email:em,name:nm,role:"owner"});
+      b.set(RAW.doc("companies/"+id+"/people/"+em),{email:em,name:nm,role:"owner"});seedB(b,id);
       return b.commit().then(function(){alert("Company created. The manager can now open the app, choose I am with a company, tap First time? Create my password, and sign in.");ownerDraw()});
     }).catch(dbe);
   }
@@ -2934,7 +2945,6 @@ PLATFORM="zanganam88@gmail.com";
   }
   setInterval(paintN,700);
 })();
-
 window.__ALPHA_END=1;
 </script>
 </body>
