@@ -1627,7 +1627,7 @@ PLATFORM="zanganam88@gmail.com";
   var ab=document.createElement("button");ab.type="button";ab.className="ghost";ab.textContent="Alerts";ab.hidden=true;ab.style.cssText="margin-left:10px";
   var ai=document.createElement("button");ai.type="button";ai.className="ghost";ai.textContent="Test";ai.hidden=true;ai.style.cssText="margin-left:8px";ai.onclick=function(){pushSheet()};
   var mb=document.createElement("button");mb.type="button";mb.className="ghost";mb.textContent="Menu";mb.hidden=true;mb.style.cssText="margin-left:14px";
-  var bar=$("brand");if(bar){bar.appendChild(mb);bar.appendChild(ab);bar.appendChild(ai)}else{ap.insertBefore(ai,ap.firstChild);ap.insertBefore(ab,ap.firstChild);ap.insertBefore(mb,ap.firstChild)}
+  var bar=$("brand");if(bar){bar.appendChild(mb);bar.appendChild(ab)}else{ap.insertBefore(ab,ap.firstChild);ap.insertBefore(mb,ap.firstChild)}
   ab.onclick=function(){
     if(!pushSupported()){pushSheet();return}
     if(isOn()){
