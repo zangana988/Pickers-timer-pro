@@ -319,7 +319,7 @@ rr();render();stats();setInterval(render,1000);
         var cd=c.exists?c.data():{};
         if(cd.active===false){noAccess(u,"This company account is suspended. Please contact support.");return}
         CID=m.cid;ROLE=m.role||"staff";COMP=cd;CFG=Object.assign({},CFG,cd.settings||{});
-        window.SCANNER=!!m.scanner;window.SCANNER_PICKER=m.scanner?(m.picker||""):"";window.INBOUND=!!m.inbound;
+        window.SCANNER=!!m.scanner;window.SCANNER_PICKER=m.scanner?(m.picker||""):"";window.INBOUND=!!m.inbound;window.MEMNAME=m.name||"";
         if(m.scanner&&new URLSearchParams(location.search).get("me")!=="1"){var q2=new URLSearchParams(location.search);q2.set("me","1");q2.delete("display");location.replace(location.pathname+"?"+q2.toString().replace(/%40/g,"@"));return}
         applyBrand();window.dispatchEvent(new Event("rolechange"));go();view("app");
       });
@@ -1593,7 +1593,8 @@ PLATFORM="zanganam88@gmail.com";
     +'<button id="hp" type="button" style="padding:22px 14px;font-size:20px">Pickers management</button>'
     +'<button id="he" type="button" style="padding:22px 14px;font-size:20px">Expirations management<div id="hes" style="font-size:14px;font-weight:600;margin-top:6px"></div></button>'
     +'<button id="hm" type="button" style="padding:22px 14px;font-size:20px">Warehouse Map<div id="hms" style="font-size:14px;font-weight:600;margin-top:6px"></div></button>'
-    +'<button id="hg" type="button" style="padding:22px 14px;font-size:20px">Palletization guide<div id="hgs" style="font-size:14px;font-weight:600;margin-top:6px"></div></button></div>'
+    +'<button id="hg" type="button" style="padding:22px 14px;font-size:20px">Palletization guide<div id="hgs" style="font-size:14px;font-weight:600;margin-top:6px"></div></button>'
+    +'<button id="hlab" type="button" style="padding:22px 14px;font-size:20px">Pallet labels (A3)<div id="hls" style="font-size:14px;font-weight:600;margin-top:6px"></div></button></div>'
     +'<div id="hall" hidden style="margin-top:22px"><button id="hallb" type="button" style="width:100%;padding:16px 14px;font-size:17px">All companies (owner)</button><div class="meta" style="margin-top:6px">You are viewing this company as the owner. Tap to go back to the list of all companies.</div></div>'
     +'<div class="row" style="margin-top:22px"><button id="hpush" type="button" class="ghost">Phone alerts</button><button id="hpin" type="button" class="ghost">Picker PINs</button><button id="hso" type="button" class="ghost">Sign out</button></div></div>';
   document.body.appendChild(hub);
@@ -1654,8 +1655,9 @@ PLATFORM="zanganam88@gmail.com";
   function sync(){
     var own=ROLE==="owner"&&!ap.hidden;
     var inb=!!window.INBOUND&&ROLE!=="owner"&&!ap.hidden;
-    pg.hidden=!((own&&page==="pal")||inb);
-    if(own||inb)palSub();
+    pg.hidden=!((own&&page==="pal")||(inb&&page!=="lab"));
+    if(typeof lb!=="undefined"&&lb)lb.hidden=!((own||inb)&&page==="lab");
+    if(own||inb){palSub();if(typeof labSub==="function")labSub()}
     ai.hidden=ab.hidden=ap.hidden||!!window.INBOUND||!ROLE||ROLE==="display"||!!window.SCANNER||/[?&]me=1/.test(location.search);
     if(ap.hidden)page="menu";
     hub.hidden=!(own&&page==="menu");ex.hidden=!(own&&page==="exp");if(typeof wm!=="undefined"&&wm)wm.hidden=!(own&&page==="map");mb.hidden=!own;
@@ -2848,7 +2850,7 @@ PLATFORM="zanganam88@gmail.com";
   var PAL=[],PALM={n:0},palOn=false,palRaw=[],palQ="",palLim=60,palSeq=0,PCH=400,palLoaded=false,palImp=null,palOpen={};
   var pg=document.createElement("div");pg.hidden=true;pg.style.cssText=FULL+";z-index:46";
   pg.innerHTML='<div style="max-width:720px;margin:0 auto">'
-    +'<div class="row" style="margin:0 0 10px"><h1 style="margin:0;font-size:22px;display:flex;align-items:center;gap:8px">'+badge(28)+'<span>Palletization guide</span></h1><button id="pgm" type="button" class="ghost" hidden>Menu</button><button id="pgo" type="button" class="ghost" hidden>Sign out</button></div>'
+    +'<div class="row" style="margin:0 0 10px"><h1 style="margin:0;font-size:22px;display:flex;align-items:center;gap:8px">'+badge(28)+'<span>Palletization guide</span></h1><div style="display:flex;gap:8px"><button id="pgm" type="button" class="ghost" hidden>Menu</button><button id="pgl2" type="button" class="ghost" hidden>Pallet labels</button><button id="pgo" type="button" class="ghost" hidden>Sign out</button></div></div>'
     +'<div id="pgMsg"></div>'
     +'<input id="pgq" placeholder="Search article number or product" autocomplete="off" style="font-size:20px;padding:14px;margin-bottom:8px">'
     +'<div id="pgc" class="meta" style="margin-bottom:10px"></div>'
@@ -3014,7 +3016,7 @@ PLATFORM="zanganam88@gmail.com";
   function palDraw(){
     if(!$("pgl"))return;
     var mgr=palMgr();
-    $("pgmg").hidden=!mgr;$("pgim").hidden=!mgr;$("pgm").hidden=!mgr;$("pgo").hidden=mgr||!window.INBOUND;
+    $("pgmg").hidden=!mgr;$("pgim").hidden=!mgr;$("pgm").hidden=!mgr;$("pgo").hidden=mgr||!window.INBOUND;$("pgl2").hidden=mgr||!window.INBOUND;
     if($("hgs"))$("hgs").textContent=PAL.length?PAL.length+" product"+(PAL.length===1?"":"s"):"No products yet. Tap to add them.";
     var toks=palQ.toLowerCase().split(/[\s]+/).filter(Boolean),out=[];
     PAL.forEach(function(r,i){var hay=((r.a||"")+" "+(r.p||"")+" "+(r.t==="EUR"?"eur euro pallet":r.t==="Block"?"block blok pallet":"")).toLowerCase();for(var k=0;k<toks.length;k++)if(hay.indexOf(toks[k])<0)return;out.push(i)});
@@ -3133,6 +3135,308 @@ PLATFORM="zanganam88@gmail.com";
   $("hg").onclick=function(){page="pal";sync();palDraw()};
   $("pgm").onclick=function(){page="menu";sync()};
   $("pgo").onclick=function(){$("so").click()};
+
+  // =================== Pallet labels (A3 print) ===================
+  var LAB=[],LABM={n:0},labOn=false,labRaw=[],labSeq=0,LCH=600,labLoaded=false,labImp=null,labSel=-1,labQ="",labLastKey="";
+  var lb=document.createElement("div");lb.hidden=true;lb.style.cssText=FULL+";z-index:46";
+  lb.innerHTML='<div style="max-width:760px;margin:0 auto">'
+    +'<div class="row" style="margin:0 0 10px"><h1 style="margin:0;font-size:22px;display:flex;align-items:center;gap:8px">'+badge(28)+'<span>Pallet labels</span></h1><div style="display:flex;gap:8px"><button id="lbm" type="button" class="ghost" hidden>Menu</button><button id="lbPal" type="button" class="ghost" hidden>Palletization</button><button id="lbo" type="button" class="ghost" hidden>Sign out</button></div></div>'
+    +'<div id="lbMsg"></div>'
+    +'<input id="lbq" placeholder="Article code" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="font-size:22px;padding:14px;margin-bottom:8px">'
+    +'<div id="lbSug"></div>'
+    +'<div id="lbForm" hidden>'
+    +'<div id="lbCard" style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:6px 0 12px"></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><label>Number of boxes<input id="lbN" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="e.g. 48"></label><label>Expiry date<input id="lbE" type="date"></label></div>'
+    +'<div id="lbHint" class="meta" style="margin:6px 0 10px"></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><label>Copies<input id="lbC" inputmode="numeric" pattern="[0-9]*" value="1" autocomplete="off"></label></div>'
+    +'<div class="meta" style="margin:14px 0 6px">Preview (the big text is sized automatically to fill the label):</div>'
+    +'<div style="border:1px solid var(--line);box-shadow:0 2px 12px rgba(0,0,0,.18);border-radius:4px;overflow:hidden;background:#fff"><div id="lbPrev"></div></div>'
+    +'<div id="lbNeed" class="meta" style="margin-top:8px;color:'+RED+';font-weight:700"></div>'
+    +'<div class="row" style="margin-top:10px"><button id="lbP" type="button" style="font-size:19px;padding:14px 18px">Print A3 label</button><button id="lbX" type="button" class="ghost">New label</button></div>'
+    +'<div class="meta" style="margin-top:8px">In the print window choose the A3 paper size and turn off headers, footers and "fit to page" scaling if you see them.</div>'
+    +'</div>'
+    +'<div id="lbmg" hidden><div class="row" style="margin:14px 0 0"><button id="lba" type="button" class="ghost">+ Add product</button></div></div>'
+    +'<div id="lbim" hidden><details style="margin-top:16px"><summary>Import from Excel (first load or bulk update)</summary><div style="margin-top:10px">'
+    +'<div class="meta" style="margin-bottom:8px">Columns: article code, product name, short name and pick location. Products with the same article code are updated, new ones are added. If one article appears on several rows, the pick locations are joined.</div>'
+    +'<input id="lbf" type="file"><div class="meta" style="margin:12px 0 6px">Or copy the cells in Excel and paste them here:</div>'
+    +'<textarea id="lbp" rows="4" placeholder="Paste cells here (with the header row)" style="width:100%"></textarea>'
+    +'<div id="lbmap" style="margin-top:10px"></div>'
+    +'<div class="row" style="margin-top:14px"><button id="lbclr" type="button" class="ghost">Delete the whole list</button></div></div></details></div>'
+    +'</div>';
+  document.body.appendChild(lb);
+  var lbp=document.createElement("div");lbp.id="lbPrint";document.body.appendChild(lbp);
+  (function(){
+    var st=document.createElement("style");
+    st.textContent='#lbPrint{display:none}'
+      +'.lbs{container-type:inline-size;position:relative;width:100%;background:#fff;color:#000;box-sizing:border-box;-webkit-text-size-adjust:100%;text-size-adjust:100%}'
+      +'.lbs.land{aspect-ratio:410/287}'
+      +'.lbi{box-sizing:border-box;position:absolute;left:0;top:0;right:0;bottom:0;border:.5cqw solid #000;padding:.7cqw .9cqw;display:flex;flex-direction:column;font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}'
+      +'.lnm{flex:5 1 0;min-height:0;display:flex}'
+      +'.lrow{flex:3 1 0;min-height:0;display:flex;border-top:.5cqw solid #000}'
+      +'.lc{flex:1 1 0;min-width:0;min-height:0;display:flex;flex-direction:column;padding-top:0}'
+      +'.lc+.lc{border-left:.5cqw solid #000}'
+      +'.fb{flex:1 1 0;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}'
+      +'.ft{display:block;text-align:center;font-weight:900;line-height:.92;white-space:nowrap}.nl{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%}.ln{display:block;text-align:center;font-weight:900;line-height:.92;white-space:nowrap}'
+      +'.lft{flex:none;display:flex;justify-content:space-between;gap:2cqw;border-top:.3cqw solid #000;margin-top:1cqw;padding-top:.7cqw;font-size:1.6cqw;font-weight:900;line-height:1.25}'
+      +'@media print{body>*:not(#lbPrint){display:none!important}'
+      +'html,body{background:#fff!important;margin:0!important;padding:0!important;height:auto!important;overflow:visible!important}'
+      +'#lbPrint{display:block!important}'
+      +'#lbPrint .lbs{width:99.5%;margin:0 auto;break-after:page;page-break-after:always;break-inside:avoid}'
+      +'#lbPrint .lbs:last-child{break-after:auto;page-break-after:auto}'
+      +'.lbs,.lbs *{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
+    document.head.appendChild(st);
+    var pc=document.createElement("style");pc.id="lbPageCss";document.head.appendChild(pc);
+  })();
+  function lbMsg(t,bad){var e=$("lbMsg");e.innerHTML=t?'<div style="padding:10px 12px;border-radius:10px;font-weight:600;margin-bottom:10px;background:'+(bad?"var(--badbg)":"var(--okbg)")+';color:'+(bad?RED:"var(--ok)")+'">'+esc(t)+'</div>':""}
+  function labMgr(){return ROLE==="owner"}
+  function labSub(){
+    if(labOn||!DB)return;labOn=true;
+    DB.doc("app/labmeta").onSnapshot(function(d){
+      var m=d.exists?d.data():{n:0},seq=++labSeq,n=+m.n||0;LABM={n:n};
+      var jobs=[];for(var i=0;i<n;i++)jobs.push(DB.doc("app/lab_"+i).get());
+      Promise.all(jobs).then(function(ds){
+        if(seq!==labSeq)return;
+        labRaw=[];var all=[];
+        ds.forEach(function(x,i){var rs=x.exists?(x.data().rows||[]):[];labRaw[i]=JSON.stringify(rs);all=all.concat(rs)});
+        LAB=all;labLoaded=true;
+        if(labSel>=0&&(labSel>=LAB.length||nk(LAB[labSel].a)!==labLastKey))labSel=lbFind(labLastKey);
+        lbDraw();
+      }).catch(function(){lbMsg("Cannot read the product list. Check your connection and access.",true)});
+    },function(){lbMsg("Cannot read the product list. Check your connection and access.",true)});
+  }
+  function nk(s){return String(s==null?"":s).trim().toLowerCase().replace(/^0+(?=.)/,"")}
+  function lbClean(r){var c=function(v){return String(v==null?"":v).trim().replace(/\.0+$/,"")};return {a:c(r.a),p:c(r.p),s:c(r.s),l:c(r.l)}}
+  function lbFind(k){if(!k)return -1;for(var i=0;i<LAB.length;i++)if(nk(LAB[i].a)===k)return i;return -1}
+  function labSave(list){
+    var chunks=[],i;for(i=0;i<list.length;i+=LCH)chunks.push(list.slice(i,i+LCH));
+    var b=DB.batch(),raw=[];
+    chunks.forEach(function(c,k){var s=JSON.stringify(c);raw[k]=s;if(labRaw[k]!==s)b.set(DB.doc("app/lab_"+k),{rows:c})});
+    for(i=chunks.length;i<Math.max(LABM.n,labRaw.length);i++)b.delete(DB.doc("app/lab_"+i));
+    b.set(DB.doc("app/labmeta"),{n:chunks.length,at:Date.now()});
+    return b.commit().then(function(){LAB=list;labRaw=raw;LABM={n:chunks.length};lbDraw()});
+  }
+  function lbWho(){var cu=firebase.auth().currentUser,e=cu?(cu.email||"").toLowerCase():"";return String(window.MEMNAME||(typeof PEOPLE!=="undefined"&&PEOPLE[e])||(cu&&cu.displayName)||e.split("@")[0]||"").trim()}
+  function dmy(s){var m=/^(\d{4})-(\d\d)-(\d\d)$/.exec(s||"");return m?m[3]+"-"+m[2]+"-"+m[1]:""}
+  function lbState(){
+    var r=labSel>=0?LAB[labSel]:null;
+    var n=Math.round(+String($("lbN").value).replace(",","."))||0,e=$("lbE").value,c=Math.max(1,Math.min(20,Math.round(+$("lbC").value)||1));
+    return {r:r,n:n,e:e,c:c,or:"landscape",ok:!!(r&&n>0&&parseISO(e))};
+  }
+  // the label itself: big short name, boxes and expiry, tiny location and staff name (values only)
+  function lbSheet(o){
+    return '<div class="lbs land"><div class="lbi">'
+      +'<div class="lnm"><div class="fb" data-k="name" data-t="'+esc(o.name||"")+'"><div class="nl"></div></div></div>'
+      +'<div class="lrow">'
+        +'<div class="lc"><div class="fb" data-k="one"><span class="ft">'+esc(o.boxes)+'</span></div></div>'
+        +'<div class="lc"><div class="fb" data-k="one"><span class="ft">'+esc(o.exp)+'</span></div></div>'
+      +'</div>'
+      +'<div class="lft"><span>'+esc(o.loc||"-")+'</span><span>'+esc(o.by||"")+' &middot; '+esc(o.when||"")+'</span></div>'
+      +'</div></div>';
+  }
+  // Smart fit: measure the real text, then
+  //  - the row with boxes + expiry gets just the height it needs and both fill the full width at one equal size,
+  //  - the name is split over 1-5 lines in the best way (every line fills the full width, no word is ever cut),
+  //  - any small gap left at the sides is closed by stretching the letters slightly (max 12%).
+  function lbFit(root){
+    var sh=root.querySelector(".lbs");if(!sh)return;
+    var SW=sh.clientWidth;if(!SW)return;
+    var u=100/SW,LH=.92,SAFE=.985,STR=1.12,i,j;
+    var lnm=sh.querySelector(".lnm"),lrow=sh.querySelector(".lrow"),lcs=sh.querySelectorAll(".lc"),nm=sh.querySelector('.fb[data-k="name"]'),ones=sh.querySelectorAll('.fb[data-k="one"]'),nl=nm.firstChild;
+    var mm=document.createElement("span");mm.style.cssText="position:absolute;left:0;top:0;visibility:hidden;white-space:nowrap;font-weight:900;font-size:100px;line-height:1;letter-spacing:0;padding:0;margin:0;pointer-events:none";
+    sh.querySelector(".lbi").appendChild(mm);
+    function m(t){mm.textContent=t;return mm.offsetWidth/100}
+    var clamp=function(v,a,b){return Math.max(a,Math.min(b,v))};
+    // ---- boxes + expiry row ----
+    var t0=ones[0].firstChild.textContent,t1=ones[1].firstChild.textContent,mb=m(t0),me=m(t1);
+    var Htot=lnm.clientHeight+lrow.clientHeight,sep=.5*SW/100,Frw=(lrow.clientWidth-sep)/(mb+me)*SAFE;
+    var rho=clamp((Frw*LH+1.2*SW/100)/Htot,.2,.46);
+    lnm.style.flex=(1-rho)+" 1 0";lrow.style.flex=rho+" 1 0";lcs[0].style.flex=mb+" 1 0";lcs[1].style.flex=me+" 1 0";
+    var F=Math.min(Frw,ones[0].clientHeight/LH*SAFE),ms=[mb,me];
+    for(i=0;i<2;i++){
+      var sp=ones[i].firstChild,w=ones[i].clientWidth,s=clamp(w*SAFE/(ms[i]*F),1,STR);
+      sp.style.fontSize=(F*u).toFixed(3)+"cqw";sp.style.transform=s>1.001?"scaleX("+s.toFixed(3)+")":"none";
+    }
+    // ---- name ----
+    var W=nm.clientWidth*SAFE,H=nm.clientHeight*SAFE,words=(nm.dataset.t||"").split(/\s+/).filter(Boolean),best=null;
+    if(!words.length)words=[""];
+    if(words.length>12)words=[words.join(" ")];
+    var nw=words.length;
+    for(var mask=0;mask<(1<<(nw-1));mask++){
+      var lines=[],cur=[words[0]];
+      for(i=1;i<nw;i++){if((mask>>(i-1))&1){lines.push(cur.join(" "));cur=[words[i]]}else cur.push(words[i])}
+      lines.push(cur.join(" "));
+      if(lines.length>5)continue;
+      var Fi=lines.map(function(x){return W/m(x)}),tot=0,minF=1e9;
+      Fi.forEach(function(f){tot+=f*LH;minF=Math.min(minF,f)});
+      var k=Math.min(1,H/tot),score=k*minF;
+      if(!best||score>best.score*1.0005)best={lines:lines,F:Fi,k:k,score:score};
+    }
+    var h="";
+    best.lines.forEach(function(x,i){
+      h+='<span class="ln" style="font-size:'+(best.F[i]*best.k*u).toFixed(3)+'cqw;transform:'+(best.k<.995?"scaleX("+Math.min(STR,1/best.k).toFixed(3)+")":"none")+'">'+esc(x)+'</span>';
+    });
+    nl.innerHTML=h;
+    // ---- safety: if anything is still too big (other fonts, rounding) shrink it a little until it fits ----
+    function fits(box,els){
+      var bw=box.clientWidth+.5,bh=box.clientHeight+.5,th=0,ok=true;
+      Array.prototype.forEach.call(els,function(e){var r=e.getBoundingClientRect();th+=e.offsetHeight;if(r.width>bw)ok=false});
+      return ok&&th<=bh;
+    }
+    function shrink(box,els){
+      for(var n=0;n<10&&!fits(box,els);n++)Array.prototype.forEach.call(els,function(e){e.style.fontSize=(parseFloat(e.style.fontSize)*.97).toFixed(3)+"cqw"});
+    }
+    shrink(nm,nl.querySelectorAll(".ln"));
+    for(i=0;i<2;i++)shrink(ones[i],[ones[i].firstChild]);
+    mm.remove();
+  }
+  function lbPreview(){
+    var s=lbState(),host=$("lbPrev");
+    if(lb.hidden)return;
+    if(!s.r){host.innerHTML="";return}
+    var now=new Date(),when=p2(now.getDate())+"-"+p2(now.getMonth()+1)+"-"+now.getFullYear()+" "+p2(now.getHours())+":"+p2(now.getMinutes());
+    host.innerHTML=lbSheet({name:s.r.s||s.r.p||s.r.a,boxes:s.n>0?String(s.n):"--",exp:s.e?dmy(s.e):"--",loc:s.r.l,by:lbWho(),when:when,or:s.or});
+    lbFit(host);
+    $("lbP").disabled=!s.ok;
+    $("lbNeed").textContent=s.ok?"":(s.n>0?"Choose the expiry date to print.":(s.e?"Type the number of boxes to print.":"Type the number of boxes and choose the expiry date to print."));
+  }
+  function lbPrint(){
+    var s=lbState();if(!s.ok)return;
+    lbPreview();
+    var one=$("lbPrev").innerHTML,out="",i;for(i=0;i<s.c;i++)out+=one;
+    $("lbPrint").innerHTML=out;
+    $("lbPageCss").textContent="@page{size:A3 "+s.or+";margin:5mm}";
+    try{lg("Label printed",(s.r.a||"")+" · "+(s.r.s||s.r.p||"")+" · "+s.n+" boxes · exp "+dmy(s.e)+" · "+s.c+" copy")}catch(x){}
+    window.print();
+  }
+  function lbSelect(i){
+    labSel=i;var r=LAB[i];labLastKey=nk(r.a);
+    $("lbN").value="";$("lbE").value="";$("lbC").value="1";
+    $("lbHint").textContent="";
+    lbDraw();
+  }
+  function lbDraw(){
+    if(!$("lbq"))return;
+    var mgr=labMgr(),own=ROLE==="owner";
+    $("lbm").hidden=!own;$("lbPal").hidden=own||!window.INBOUND;$("lbo").hidden=own||!window.INBOUND;
+    $("lbmg").hidden=!mgr;$("lbim").hidden=!mgr;
+    if($("hls"))$("hls").textContent=LAB.length?LAB.length+" product"+(LAB.length===1?"":"s"):"No products yet. Tap to add them.";
+    var q=labQ.trim(),k=nk(q),sug=$("lbSug");
+    var ex=k?lbFind(k):-1;
+    if(ex>=0&&ex!==labSel){lbSelect(ex);return}
+    if(labSel>=0&&k&&nk(LAB[labSel].a)!==k)labSel=-1;      // the typed code no longer matches the chosen product
+    if(!q)labSel=-1;
+    $("lbForm").hidden=labSel<0;
+    if(labSel>=0){
+      var r=LAB[labSel];
+      $("lbCard").innerHTML='<div style="font-weight:900;font-size:22px;overflow-wrap:anywhere">'+esc(r.s||r.p||r.a)+'</div>'
+        +(r.p&&r.s?'<div style="font-size:15px;margin-top:2px;overflow-wrap:anywhere">'+esc(r.p)+'</div>':"")
+        +'<div class="meta" style="margin-top:6px;font-size:15px">Article '+esc(r.a)+' &middot; Pick location: <b>'+esc(r.l||"-")+'</b></div>'
+        +(mgr?'<button id="lbEd" type="button" class="ghost" style="margin-top:8px;width:auto">Edit product</button>':"");
+      if($("lbEd"))$("lbEd").onclick=function(){lbForm(labSel)};
+      sug.innerHTML="";
+      lbPreview();
+      return;
+    }
+    if(!q){
+      sug.innerHTML='<div class="empty" style="font-size:18px;padding:30px 10px">'+(!labLoaded?"Loading...":!LAB.length?(mgr?"No products yet. Import your Excel list below, or tap + Add product.":"The product list is empty. Ask your manager to import it."):"Type the article code above to make the label.")+'</div>';
+      return;
+    }
+    var toks=q.toLowerCase().split(/\s+/).filter(Boolean),out=[],i,j;
+    for(i=0;i<LAB.length&&out.length<8;i++){var hay=((LAB[i].a||"")+" "+(LAB[i].s||"")+" "+(LAB[i].p||"")).toLowerCase(),okk=true;for(j=0;j<toks.length;j++)if(hay.indexOf(toks[j])<0){okk=false;break}if(okk)out.push(i)}
+    sug.innerHTML=out.length?'<div class="meta" style="margin:4px 0 6px">No exact article code yet. Tap the product:</div>'+out.map(function(i){var r=LAB[i];return '<button type="button" class="ghost" data-ls="'+i+'" style="width:100%;text-align:left;margin-bottom:6px"><b>'+esc(r.a)+'</b> &middot; '+esc(r.s||r.p||"")+(r.l?' <span class="meta">&middot; '+esc(r.l)+'</span>':"")+'</button>'}).join(""):'<div class="empty">No product with this code.'+(mgr?" Add it with + Add product or import it.":" Ask your manager to add it.")+'</div>';
+    Array.prototype.forEach.call(sug.querySelectorAll("[data-ls]"),function(b){b.onclick=function(){var r=LAB[+b.dataset.ls];labQ=r.a;$("lbq").value=r.a;lbDraw()}});
+  }
+  $("lbq").oninput=function(){labQ=this.value;lbDraw()};
+  $("lbN").oninput=lbPreview;$("lbE").oninput=lbPreview;$("lbE").onchange=lbPreview;$("lbC").oninput=lbPreview;
+  $("lbP").onclick=lbPrint;
+  $("lbX").onclick=function(){labQ="";labSel=-1;labLastKey="";$("lbq").value="";$("lbN").value="";$("lbE").value="";$("lbC").value="1";$("lbHint").textContent="";lbDraw();try{$("lbq").focus()}catch(e){}};
+  var lbRz=0;window.addEventListener("resize",function(){clearTimeout(lbRz);lbRz=setTimeout(function(){if(!lb.hidden&&labSel>=0)lbPreview()},250)});
+  // ----- add / edit (manager) -----
+  function lbForm(i){
+    var r=i>=0?LAB[i]:{a:"",p:"",s:"",l:""};
+    var f=function(id,lbl,v){return '<label class="wide">'+lbl+'<input id="'+id+'" value="'+esc(v==null?"":v)+'" autocomplete="off"></label>'};
+    sheet('<h2 style="margin:0 0 10px">'+(i>=0?"Edit product":"Add product")+'</h2><div id="lfMsg"></div>'
+      +f("lfA","Article code",r.a)+f("lfP","Product name",r.p)+f("lfS","Short name (printed big on the label)",r.s)+f("lfL","Pick location",r.l)
+      +'<div class="row" style="margin-top:14px"><button id="lfS2" type="button">Save</button><button id="lfX" type="button" class="ghost">Cancel</button>'+(i>=0?'<button id="lfD" type="button" class="ghost">Delete</button>':"")+'</div>');
+    $("lfX").onclick=closeSheet;
+    $("lfS2").onclick=function(){
+      var o=lbClean({a:$("lfA").value,p:$("lfP").value,s:$("lfS").value,l:$("lfL").value}),e=$("lfMsg");
+      if(!o.a){e.innerHTML='<div style="color:'+RED+';font-weight:700;margin-bottom:8px">Type the article code.</div>';return}
+      if(!o.p&&!o.s){e.innerHTML='<div style="color:'+RED+';font-weight:700;margin-bottom:8px">Type the product name or the short name.</div>';return}
+      var list=LAB.slice(),dup=lbFind(nk(o.a));
+      if(dup>=0&&dup!==i){e.innerHTML='<div style="color:'+RED+';font-weight:700;margin-bottom:8px">This article code is already in the list.</div>';return}
+      if(i>=0)list[i]=o;else list.push(o);
+      $("lfS2").disabled=true;
+      labSave(list).then(function(){labQ=o.a;$("lbq").value=o.a;try{lg(i>=0?"Label product changed":"Label product added",o.a+" "+(o.s||o.p)+" · "+o.l)}catch(x){}closeSheet();lbDraw()}).catch(function(er){$("lfS2").disabled=false;dbe(er)});
+    };
+    if(i>=0)$("lfD").onclick=function(){
+      if(!confirm("Delete this product from the label list?"))return;
+      var list=LAB.slice();list.splice(i,1);
+      labSave(list).then(function(){try{lg("Label product deleted",(r.a||"")+" "+(r.s||r.p||""))}catch(x){}closeSheet();labSel=-1}).catch(dbe);
+    };
+  }
+  $("lba").onclick=function(){lbForm(-1)};
+  // ----- import -----
+  var LF=[["a","Article code"],["p","Product name"],["s","Short name"],["l","Pick location"]];
+  var LRX={s:/short|kort|abbr|alias|label/i,a:/^(art|sku|code|item|ean|ref)|article|artikel|product.?(code|nr|no|number)/i,l:/loc|pick|plaats|bin|slot|positi|address|adres/i,p:/product|name|desc|omschr|naam/i};
+  function lbGuess(head){
+    var used={},g={};
+    ["s","a","l","p"].forEach(function(k){
+      for(var c=0;c<head.length;c++){if(used[c])continue;if(LRX[k].test(String(head[c]||""))){g[k]=c;used[c]=1;break}}
+    });
+    return g;
+  }
+  function lbRows(rows){
+    rows=rows.filter(function(r){return r.some(function(c){return String(c==null?"":c).trim()!==""})});
+    if(rows.length<2){lbMsg("No data found. The first row must be the column titles.",true);return}
+    var head=rows[0].map(function(c){return String(c==null?"":c).trim()}),g=lbGuess(head);
+    labImp={head:head,rows:rows.slice(1)};
+    var opt='<option value="-1">(none)</option>'+head.map(function(h,c){return '<option value="'+c+'">'+letter(c)+' - '+esc(h||"(empty)")+'</option>'}).join("");
+    $("lbmap").innerHTML='<div class="meta" style="margin-bottom:8px">'+labImp.rows.length+' rows found. Check which column is which:</div>'
+      +LF.map(function(f){return '<label class="wide">'+f[1]+'<select data-lf="'+f[0]+'">'+opt+'</select></label>'}).join("")
+      +'<div class="row" style="margin-top:10px"><button id="lbGo" type="button">Import '+labImp.rows.length+' rows</button></div>';
+    LF.forEach(function(f){var s=$("lbmap").querySelector('[data-lf="'+f[0]+'"]');s.value=g[f[0]]!=null?g[f[0]]:-1});
+    $("lbGo").onclick=lbRun;
+  }
+  function lbRun(){
+    var col={};Array.prototype.forEach.call($("lbmap").querySelectorAll("[data-lf]"),function(s){col[s.dataset.lf]=+s.value});
+    if(col.a<0||(col.p<0&&col.s<0)){lbMsg("Choose the column for the article code and for the product name or the short name.",true);return}
+    var get=function(r,k){return col[k]>=0?r[col[k]]:""};
+    var list=LAB.slice(),idx={},seen={},add=0,upd=0,skipped=0;
+    list.forEach(function(o,i){idx[nk(o.a)]=i});
+    labImp.rows.forEach(function(r){
+      var o=lbClean({a:get(r,"a"),p:get(r,"p"),s:get(r,"s"),l:get(r,"l")});
+      if(!o.a||(!o.p&&!o.s)){skipped++;return}
+      var k=nk(o.a);
+      if(seen[k]){var t=list[idx[k]];if(o.l&&(" · "+t.l+" · ").indexOf(" · "+o.l+" · ")<0)t.l=t.l?t.l+" · "+o.l:o.l;if(!t.s&&o.s)t.s=o.s;if(!t.p&&o.p)t.p=o.p;return}
+      seen[k]=1;
+      if(idx[k]!=null){list[idx[k]]=o;upd++}else{idx[k]=list.length;list.push(o);add++}
+    });
+    if(!add&&!upd){lbMsg("Nothing to import. Check the columns: every row needs an article code and a product or short name.",true);return}
+    $("lbGo").disabled=true;
+    labSave(list).then(function(){try{lg("Label list imported",add+" added, "+upd+" updated")}catch(x){}
+      lbMsg("Done. "+add+" added, "+upd+" updated"+(skipped?", "+skipped+" rows skipped (no article code or name).":"."));$("lbmap").innerHTML="";$("lbf").value="";$("lbp").value="";labImp=null;
+    }).catch(function(e){$("lbGo").disabled=false;dbe(e)});
+  }
+  $("lbf").onchange=function(){
+    var f=this.files&&this.files[0];if(!f)return;
+    lbMsg("Reading the file...");
+    var done=function(rows){lbMsg("");lbRows(rows)},fail=function(e){lbMsg("Could not read this file: "+((e&&e.message)||e),true)};
+    if(/\.csv$|\.txt$/i.test(f.name)){var fr=new FileReader();fr.onload=function(){try{done(readCsv(String(fr.result)))}catch(e){fail(e)}};fr.readAsText(f)}
+    else{var fb=new FileReader();fb.onload=function(){readXlsx(fb.result).then(function(sh){done(sh[0].rows)}).catch(fail)};fb.readAsArrayBuffer(f)}
+  };
+  $("lbp").oninput=function(){var t=this.value;if(t.trim())try{lbRows(readCsv(t))}catch(e){}};
+  $("lbclr").onclick=function(){
+    if(!LAB.length)return;
+    if(!confirm("Delete ALL "+LAB.length+" products from the label list? This cannot be undone.")||prompt('Type DELETE to confirm')!=="DELETE")return;
+    labSave([]).then(function(){try{lg("Label list cleared","")}catch(x){}labSel=-1;lbMsg("The list was cleared.")}).catch(dbe);
+  };
+  // ----- navigation -----
+  $("hlab").onclick=function(){page="lab";sync();lbDraw()};
+  $("lbm").onclick=function(){page="menu";sync()};
+  $("lbPal").onclick=function(){page="pal";sync();palDraw()};
+  $("pgl2").onclick=function(){page="lab";sync();lbDraw()};
+  $("lbo").onclick=function(){$("so").click()};
 
   sync();
 })();
