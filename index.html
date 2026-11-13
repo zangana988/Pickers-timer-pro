@@ -1624,11 +1624,33 @@ PLATFORM="zanganam88@gmail.com";
   document.body.appendChild(ex);
 
   // ---------- menu button on the pickers page ----------
+  var ab=document.createElement("button");ab.type="button";ab.className="ghost";ab.textContent="Alerts";ab.hidden=true;ab.style.cssText="margin-left:10px";
   var mb=document.createElement("button");mb.type="button";mb.className="ghost";mb.textContent="Menu";mb.hidden=true;mb.style.cssText="margin-left:14px";
-  var bar=$("brand");if(bar)bar.appendChild(mb);else ap.insertBefore(mb,ap.firstChild);
+  var bar=$("brand");if(bar){bar.appendChild(mb);bar.appendChild(ab)}else{ap.insertBefore(ab,ap.firstChild);ap.insertBefore(mb,ap.firstChild)}
+  ab.onclick=function(){
+    if(!pushSupported()){pushSheet();return}
+    if(myTok()&&Notification.permission==="granted"){
+      ab.disabled=true;ab.textContent="Turning off...";
+      pushDisable().then(function(){ab.disabled=false;abLabel()});
+      return;
+    }
+    // turning on: needs the key from the shared setup
+    ab.disabled=true;ab.textContent="Turning on...";
+    var cfgP=DB.doc("app/pushcfg").get().then(function(d){return d.exists?d.data():{}}).catch(function(){return {}});
+    // the permission request must start inside the tap, so ask first then read the setup
+    Notification.requestPermission().then(function(p){
+      if(p!=="granted"){ab.disabled=false;abLabel();pushSheet();return}
+      return cfgP.then(function(cfg){
+        if(!cfg.vapid){ab.disabled=false;abLabel();pushSheet();return}
+        return pushEnable({vapid:cfg.vapid,worker:cfg.worker||""}).then(function(){ab.disabled=false;abLabel()});
+      });
+    }).catch(function(){ab.disabled=false;abLabel();pushSheet()});
+  };
+  setInterval(abLabel,3000);abLabel();
 
   function sync(){
     var own=ROLE==="owner"&&!ap.hidden;
+    ab.hidden=ap.hidden||!ROLE||ROLE==="display"||!!window.SCANNER||/[?&]me=1/.test(location.search);
     if(ap.hidden)page="menu";
     hub.hidden=!(own&&page==="menu");ex.hidden=!(own&&page==="exp");if(typeof wm!=="undefined"&&wm)wm.hidden=!(own&&page==="map");mb.hidden=!own;
     var cu=firebase.auth().currentUser;
@@ -2633,9 +2655,10 @@ PLATFORM="zanganam88@gmail.com";
   function tokId(t){var h=5381,i;for(i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))|0;return "tok_"+(h>>>0).toString(36)+"_"+t.slice(-8).replace(/[^A-Za-z0-9]/g,"x")}
   function myTok(){try{return localStorage.getItem(PLS)||""}catch(e){return ""}}
   function setTok(t){try{if(t)localStorage.setItem(PLS,t);else localStorage.removeItem(PLS)}catch(e){}}
+  function isPlat(){var cu=firebase.auth().currentUser;return !!cu&&(cu.email||"").toLowerCase()===PLATFORM.toLowerCase()}
   function pushSheet(){
     var ok=pushSupported(),perm=ok?Notification.permission:"unsupported";
-    var base='<h2 style="margin:0 0 4px">Phone alerts</h2><div class="meta" style="margin-bottom:10px">A message on your phone every morning when products are expired, close to expiry, or damaged boxes are waiting for your confirmation. It also arrives when the app is closed.</div>';
+    var base='<h2 style="margin:0 0 4px">Phone alerts</h2><div class="meta" style="margin-bottom:10px">A message on your phone when a picker finishes an order or asks for more time, and every morning for expired or close-to-expiry products. It also arrives when the app is closed.</div>';
     if(!ok){
       sheet(base+'<div style="padding:12px;border-radius:10px;background:var(--badbg);color:var(--bad);font-weight:600">'+(isApple()&&!standalone()
         ?'First add ALPHA Z WMS to your Home Screen:<ol style="margin:8px 0 0;padding-left:20px;font-weight:400;color:var(--ink)"><li>In Safari tap the Share button.</li><li>Tap <b>Add to Home Screen</b>, then <b>Add</b>.</li><li>Open ALPHA Z WMS from the new icon on your Home Screen.</li><li>Come back here (Menu, Phone alerts) and turn alerts on.</li></ol><div class="meta" style="margin-top:8px">Needs iOS 16.4 or newer.</div>'
@@ -2645,22 +2668,52 @@ PLATFORM="zanganam88@gmail.com";
     sheet(base+'<div class="meta">Loading...</div>');
     DB.doc("app/pushcfg").get().then(function(d){return d.exists?d.data():{}}).catch(function(){return {}}).then(function(cfg){paDraw({vapid:cfg.vapid||"",worker:cfg.worker||""})});
   }
+  // turn alerts on for this device (the permission request must run straight from the tap)
+  function pushEnable(c){
+    var key=c.vapid;
+    return Notification.requestPermission().then(function(p){
+      if(p!=="granted")throw new Error("Notifications were not allowed. Open Settings > Notifications > ALPHA Z WMS and allow them.");
+      return navigator.serviceWorker.register("firebase-messaging-sw.js");
+    }).then(function(reg){return navigator.serviceWorker.ready.then(function(r){return r||reg})}).then(function(reg){
+      return firebase.messaging().getToken({vapidKey:key,serviceWorkerRegistration:reg}).then(function(t){return [t,reg]});
+    }).then(function(x){
+      var t=x[0],reg=x[1];if(!t)throw new Error("No alert address was received. Check the Web Push key.");
+      var u=firebase.auth().currentUser,b=DB.batch();
+      b.set(DB.doc("app/"+tokId(t)),{t:t,em:u?u.email:"",at:Date.now(),ua:(navigator.userAgent||"").slice(0,120)});
+      if(isPlat())b.set(DB.doc("app/pushcfg"),c,{merge:true});
+      return b.commit().then(function(){
+        setTok(t);try{lg("Phone alerts on","")}catch(e){}
+        try{reg.showNotification("ALPHA Z WMS",{body:"Phone alerts are on. You will get picker requests and the daily expiry message here."})}catch(e){}
+        abLabel();
+      });
+    });
+  }
+  function pushDisable(){
+    var t=myTok();
+    var p=t?DB.doc("app/"+tokId(t)).delete().catch(function(){}):Promise.resolve();
+    return p.then(function(){try{return firebase.messaging().deleteToken()}catch(e){}}).catch(function(){}).then(function(){setTok("");try{lg("Phone alerts off","")}catch(e){}abLabel()});
+  }
+  function abLabel(){
+    var on=false;try{on=pushSupported()&&!!myTok()&&Notification.permission==="granted"}catch(e){}
+    ab.textContent=pushSupported()?(on?"Alerts: ON":"Alerts: OFF"):"Alerts";
+    ab.style.fontWeight="700";ab.style.borderColor=on?GRN:"";ab.style.color=on?GRN:"";
+  }
   function paDraw(cfg,showSet){
     var on=!!myTok()&&Notification.permission==="granted",perm=Notification.permission;
-    sheet('<h2 style="margin:0 0 4px">Phone alerts</h2><div class="meta" style="margin-bottom:10px">A message on your phone every morning when products are expired, close to expiry, or damaged boxes are waiting for your confirmation. It also arrives when the app is closed.</div>'
+    sheet('<h2 style="margin:0 0 4px">Phone alerts</h2><div class="meta" style="margin-bottom:10px">A message on your phone when a picker finishes an order or asks for more time, and every morning for expired or close-to-expiry products. It also arrives when the app is closed.</div>'
       +'<div id="paMsg"></div>'
       +'<div style="padding:12px;border-radius:10px;border:2px solid '+(on?GRN:"var(--line)")+';font-weight:700;margin-bottom:10px">This device: '+(on?"alerts ON":perm==="denied"?"blocked in the phone settings":"alerts off")+'</div>'
       +(perm==="denied"?'<div class="meta" style="margin-bottom:10px">Open Settings &gt; Notifications &gt; ALPHA Z WMS and allow notifications, then try again.</div>':'')
       +'<div class="row">'+(on?'<button id="paOff" type="button">Turn off on this device</button>':'<button id="paOn" type="button">Turn on alerts on this device</button>')+'<button id="paX" type="button" class="ghost">Close</button></div>'
-      +'<details id="paSet" style="margin-top:14px"'+(showSet||!cfg.vapid?' open':'')+'><summary>Setup (one time)</summary><div style="margin-top:8px">'
+      +(isPlat()?'<details id="paSet" style="margin-top:14px"'+(showSet||!cfg.vapid?' open':'')+'><summary>Setup (one time)</summary><div style="margin-top:8px">'
       +'<label class="wide">Web Push key (from Firebase)<input id="paK" autocomplete="off" value="'+esc(cfg.vapid)+'" placeholder="Paste the key pair here"></label>'
       +'<div class="meta" style="margin:4px 0 10px">Firebase console &gt; Project settings &gt; Cloud Messaging &gt; Web Push certificates &gt; Generate key pair.</div>'
       +'<label class="wide">Alert server address (for order alerts on picker scanners)<input id="paW" autocomplete="off" value="'+esc(cfg.worker)+'" placeholder="https://alpha-push.yourname.workers.dev"></label>'
-      +'<div class="row" style="margin-top:10px"><button id="paSave" type="button" class="ghost">Save setup</button></div></div></details>');
+      +'<div class="row" style="margin-top:10px"><button id="paSave" type="button" class="ghost">Save setup</button></div></div></details>':(cfg.vapid?'':'<div class="meta" style="margin-top:12px">Alerts are not set up yet. Ask the owner to finish the setup.</div>'))+'');
     $("paX").onclick=closeSheet;
     function pm(t,bad){var e=$("paMsg");if(e)e.innerHTML=t?'<div style="padding:10px 12px;border-radius:10px;font-weight:600;margin-bottom:10px;background:'+(bad?"var(--badbg)":"var(--okbg)")+';color:'+(bad?RED:"var(--ok)")+'">'+esc(t)+'</div>':""}
-    function cur(){return {vapid:$("paK").value.trim(),worker:$("paW").value.trim().replace(/\/+$/,"")}}
-    $("paSave").onclick=function(){
+    function cur(){return $("paK")?{vapid:$("paK").value.trim(),worker:$("paW").value.trim().replace(/\/+$/,"")}:{vapid:cfg.vapid||"",worker:cfg.worker||""}}
+    if($("paSave"))$("paSave").onclick=function(){
       var c=cur();
       if(c.worker&&!/^https:\/\//.test(c.worker)){pm("The server address must start with https://",true);return}
       DB.doc("app/pushcfg").set(c,{merge:true}).then(function(){try{lg("Alert setup saved","")}catch(e){}paDraw(c,true);pm("Setup saved.")}).catch(function(e){pm("Could not save: "+((e&&e.message)||e),true)});
@@ -2668,31 +2721,14 @@ PLATFORM="zanganam88@gmail.com";
     var bn=$("paOn");
     if(bn)bn.onclick=function(){
       var key=cur().vapid;
-      if(!key){pm("Paste the Web Push key in Setup first.",true);$("paSet").open=true;return}
+      if(!key){pm(isPlat()?"Paste the Web Push key in Setup first.":"Alerts are not set up yet. Ask the owner.",true);if($("paSet"))$("paSet").open=true;return}
       bn.disabled=true;pm("Working...");
-      // permission request must start right here, inside the tap
-      Notification.requestPermission().then(function(p){
-        if(p!=="granted")throw new Error("Notifications were not allowed. Open Settings > Notifications > ALPHA Z WMS and allow them.");
-        return navigator.serviceWorker.register("firebase-messaging-sw.js");
-      }).then(function(reg){return navigator.serviceWorker.ready.then(function(r){return r||reg})}).then(function(reg){
-        return firebase.messaging().getToken({vapidKey:key,serviceWorkerRegistration:reg}).then(function(t){return [t,reg]});
-      }).then(function(x){
-        var t=x[0],reg=x[1];if(!t)throw new Error("No alert address was received. Check the Web Push key.");
-        var u=firebase.auth().currentUser,b=DB.batch(),c=cur();
-        b.set(DB.doc("app/"+tokId(t)),{t:t,em:u?u.email:"",at:Date.now(),ua:(navigator.userAgent||"").slice(0,120)});
-        b.set(DB.doc("app/pushcfg"),c,{merge:true});
-        return b.commit().then(function(){
-          setTok(t);try{lg("Phone alerts on","")}catch(e){}
-          try{reg.showNotification("ALPHA Z WMS",{body:"Phone alerts are on. You will get the daily expiry message here."})}catch(e){}
-          paDraw(c);pm("Alerts are on for this device.");
-        });
-      }).catch(function(e){bn.disabled=false;pm((e&&e.message)||String(e),true)});
+      pushEnable(cur()).then(function(){paDraw(cur());pm("Alerts are on for this device.")}).catch(function(e){bn.disabled=false;pm((e&&e.message)||String(e),true)});
     };
     var bf=$("paOff");
     if(bf)bf.onclick=function(){
-      bf.disabled=true;var t=myTok();
-      var p=t?DB.doc("app/"+tokId(t)).delete().catch(function(){}):Promise.resolve();
-      p.then(function(){try{return firebase.messaging().deleteToken()}catch(e){}}).catch(function(){}).then(function(){setTok("");try{lg("Phone alerts off","")}catch(e){}paDraw(cur());pm("Alerts are off for this device.")});
+      bf.disabled=true;
+      pushDisable().then(function(){paDraw(cur());pm("Alerts are off for this device.")});
     };
   }
   $("hpush").onclick=pushSheet;
@@ -2815,8 +2851,8 @@ PLATFORM="zanganam88@gmail.com";
     function roster(){return (S.roster||[]).filter(Boolean)}
     function mine(){return S.active.filter(function(a){return low(a.name)===low(sel)}).sort(function(x,y){return (x.start+x.mins*60000)-(y.start+y.mins*60000)})}
     function say(t,ms){note=t;noteUntil=Date.now()+(ms||20000)}
-    function put(id,obj,okMsg){
-      DB.doc("active/"+id).set(obj,{merge:true}).then(function(){if(okMsg)say(okMsg)}).catch(function(e){say("Could not send. "+((e&&e.code==="permission-denied")?"This login is not allowed to do that. Ask your manager to use a Supervisor login on the scanners.":((e&&e.message)||e)),30000);draw(true)});
+    function put(id,obj,okMsg,kind){
+      DB.doc("active/"+id).set(obj,{merge:true}).then(function(){if(okMsg)say(okMsg);if(kind)window.alphaNotify(id,kind)}).catch(function(e){say("Could not send. "+((e&&e.code==="permission-denied")?"This login is not allowed to do that. Ask your manager to use a Supervisor login on the scanners.":((e&&e.message)||e)),30000);draw(true)});
     }
     function pickScreen(){
       var r=roster();
@@ -2912,10 +2948,10 @@ PLATFORM="zanganam88@gmail.com";
         if(q("mUndo"))q("mUndo").onclick=function(){put(pend.id,{done:null,doneRes:null},"Back to picking. The timer keeps running.");lastKey=""};
         if(q("mFin"))q("mFin").onclick=function(){confirmFin=true;lastKey="";draw(true)};
         if(q("mNo"))q("mNo").onclick=function(){confirmFin=false;lastKey="";draw(true)};
-        if(q("mYes"))q("mYes").onclick=function(){confirmFin=false;var id=cur.id;put(id,{done:{at:Date.now(),by:me(),p:sel},doneRes:null},"Sent. Waiting for your supervisor to confirm.");lastKey=""};
+        if(q("mYes"))q("mYes").onclick=function(){confirmFin=false;var id=cur.id;put(id,{done:{at:Date.now(),by:me(),p:sel},doneRes:null},"Sent. Waiting for your supervisor to confirm.","finish");lastKey=""};
         if(q("mMore"))q("mMore").onclick=function(){moreOpen=true;lastKey="";draw(true)};
         if(q("mBack"))q("mBack").onclick=function(){moreOpen=false;lastKey="";draw(true)};
-        Array.prototype.forEach.call($m("mbody").querySelectorAll("[data-more]"),function(bt){bt.onclick=function(){var n=+bt.dataset.more;moreOpen=false;put(cur.id,{more:{mins:n,at:Date.now(),p:sel,by:me()},moreRes:null},"Request sent: +"+n+" min");lastKey=""}});
+        Array.prototype.forEach.call($m("mbody").querySelectorAll("[data-more]"),function(bt){bt.onclick=function(){var n=+bt.dataset.more;moreOpen=false;put(cur.id,{more:{mins:n,at:Date.now(),p:sel,by:me()},moreRes:null},"Request sent: +"+n+" min","askmore");lastKey=""}});
         if(q("mCancel"))q("mCancel").onclick=function(){put(cur.id,{more:null});lastKey=""};
         if(q("mChg"))q("mChg").onclick=function(){if(confirm("Choose a different picker on this scanner?")){unreg();sel="";ls(LSK,null);lastKey="";draw(true)}};
 
