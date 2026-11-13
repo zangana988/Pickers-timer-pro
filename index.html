@@ -1615,7 +1615,8 @@ PLATFORM="zanganam88@gmail.com";
     +'<button id="he" type="button" style="padding:22px 14px;font-size:20px">Expirations management<div id="hes" style="font-size:14px;font-weight:600;margin-top:6px"></div></button>'
     +'<button id="hm" type="button" style="padding:22px 14px;font-size:20px">Warehouse Map<div id="hms" style="font-size:14px;font-weight:600;margin-top:6px"></div></button>'
     +'<button id="hg" type="button" style="padding:22px 14px;font-size:20px">Palletization guide<div id="hgs" style="font-size:14px;font-weight:600;margin-top:6px"></div></button>'
-    +'<button id="hlab" type="button" style="padding:22px 14px;font-size:20px">Pallet labels (A3)<div id="hls" style="font-size:14px;font-weight:600;margin-top:6px"></div></button></div>'
+    +'<button id="hlab" type="button" style="padding:22px 14px;font-size:20px">Pallet labels (A3)<div id="hls" style="font-size:14px;font-weight:600;margin-top:6px"></div></button>'
+    +'<button id="hacc" type="button" hidden style="padding:22px 14px;font-size:20px">Staff access<div style="font-size:14px;font-weight:600;margin-top:6px">Emails, pages, pickers</div></button></div>'
     +'<div id="hall" hidden style="margin-top:22px"><button id="hallb" type="button" style="width:100%;padding:16px 14px;font-size:17px">All companies (owner)</button><div class="meta" style="margin-top:6px">You are viewing this company as the owner. Tap to go back to the list of all companies.</div></div>'
     +'<div class="row" style="margin-top:22px"><button id="hpush" type="button" class="ghost">Phone alerts</button><button id="hpin" type="button" class="ghost">Picker PINs</button><button id="hso" type="button" class="ghost">Sign out</button></div></div>';
   document.body.appendChild(hub);
@@ -1692,7 +1693,7 @@ PLATFORM="zanganam88@gmail.com";
     ai.hidden=ab.hidden=ap.hidden||!!window.INBOUND||!ROLE||ROLE==="display"||!!window.SCANNER||/[?&]me=1/.test(location.search);
     if(ap.hidden)page="menu";
     hub.hidden=!(hubU&&page==="menu");ex.hidden=!(can("exp")&&page==="exp");if(typeof wm!=="undefined"&&wm)wm.hidden=!(can("map")&&page==="map");mb.hidden=!hubU;
-    $("hp").hidden=!can("pick");$("he").hidden=!can("exp");$("hm").hidden=!can("map");$("hg").hidden=!can("pal");$("hlab").hidden=!can("lab");$("hpin").hidden=!own;
+    $("hp").hidden=!can("pick");$("he").hidden=!can("exp");$("hm").hidden=!can("map");$("hg").hidden=!can("pal");$("hlab").hidden=!can("lab");$("hpin").hidden=!own;$("hacc").hidden=!own;
     var cu=firebase.auth().currentUser;
     $("hall").hidden=!(cu&&(cu.email||"").toLowerCase()===PLATFORM.toLowerCase());
     $("hpush").hidden=!(cu&&(cu.email||"").toLowerCase()===PLATFORM.toLowerCase());
@@ -2877,6 +2878,7 @@ PLATFORM="zanganam88@gmail.com";
     });
   }
   $("hpin").onclick=function(){pinsSheet()};
+  (function(){var sb=$("stb");if(sb&&sb.parentNode)sb.parentNode.style.display="none";$("hacc").onclick=function(){var x=$("stb");if(x)x.click()}})();
 
   // =================== Product palletization guide ===================
   var PAL=[],PALM={n:0},palOn=false,palRaw=[],palQ="",palLim=60,palSeq=0,PCH=400,palLoaded=false,palImp=null,palOpen={};
@@ -3184,7 +3186,7 @@ PLATFORM="zanganam88@gmail.com";
     +'<div class="meta" style="margin:14px 0 6px">Preview (the big text is sized automatically to fill the label):</div>'
     +'<div style="border:1px solid var(--line);box-shadow:0 2px 12px rgba(0,0,0,.18);border-radius:4px;overflow:hidden;background:#fff"><div id="lbPrev"></div></div>'
     +'<div id="lbNeed" class="meta" style="margin-top:8px;color:'+RED+';font-weight:700"></div>'
-    +'<div id="lbWho" hidden style="margin-top:12px"><div class="meta" style="margin-bottom:6px;font-weight:700">Who is printing? Choose your name and enter your password.</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><label>Your name<select id="lbSt"></select></label><label>Your password<input id="lbPw" type="password" autocomplete="off" autocapitalize="off" placeholder="Password"></label></div><div id="lbAuth" class="meta" style="margin-top:4px;min-height:18px"></div></div>'
+    +'<div id="lbWho" hidden style="margin-top:12px"><div class="meta" style="margin-bottom:6px;font-weight:700">Who is printing? Choose your nickname and enter your password.</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><label>Your nickname<select id="lbSt"></select></label><label>Your password<input id="lbPw" type="password" autocomplete="off" autocapitalize="off" placeholder="Password"></label></div><div id="lbAuth" class="meta" style="margin-top:4px;min-height:18px"></div></div>'
     +'<div class="row" style="margin-top:10px"><button id="lbP" type="button" style="font-size:19px;padding:14px 18px">Print A3 label</button><button id="lbX" type="button" class="ghost">New label</button></div>'
     +'<div class="meta" style="margin-top:8px">Print opens the print window of this device with all the printers already added to it (on a computer, your installed printers; on iPad or iPhone, AirPrint). Choose your A3 printer there. Paper size A3 landscape is already selected for you.</div>'
     +'</div>'
@@ -3195,7 +3197,7 @@ PLATFORM="zanganam88@gmail.com";
     +'<textarea id="lbp" rows="4" placeholder="Paste cells here (with the header row)" style="width:100%"></textarea>'
     +'<div id="lbmap" style="margin-top:10px"></div>'
     +'<div class="row" style="margin-top:14px"><button id="lbclr" type="button" class="ghost">Delete the whole list</button></div></div></details></div>'
-    +'<div id="lbst" hidden><details style="margin-top:16px"><summary>Label staff: names and passwords</summary><div style="margin-top:10px"><div class="meta" style="margin-bottom:8px">Everyone who prints labels chooses their name and enters their own password first. Their name is printed on the label. This is a simple check for accountability, not bank-level security. If you forget a password, just set a new one.</div><div id="lbstl"></div><div class="row" style="margin-top:10px"><button id="lbsa" type="button" class="ghost">+ Add staff</button></div></div></details></div>'
+    +'<div id="lbst" hidden><details style="margin-top:16px"><summary>Label staff: nicknames and passwords</summary><div style="margin-top:10px"><div class="meta" style="margin-bottom:8px">Everyone who prints labels chooses their nickname and enters their own password first. Their nickname is printed on the label. This is a simple check for accountability, not bank-level security. If you forget a password, just set a new one.</div><div id="lbstl"></div><div class="row" style="margin-top:10px"><button id="lbsa" type="button" class="ghost">+ Add staff</button></div></div></details></div>'
     +'</div>';
   document.body.appendChild(lb);
   var lbp=document.createElement("div");lbp.id="lbPrint";document.body.appendChild(lbp);
@@ -3346,7 +3348,7 @@ PLATFORM="zanganam88@gmail.com";
       bad(s.n>0?"Choose the expiry date, then tap Print again.":(s.e?"Type the number of boxes, then tap Print again.":"Type the number of boxes and choose the expiry date, then tap Print again."),s.n>0?$("lbE"):$("lbN"));return;
     }
     if(LST.length){
-      if(!$("lbSt").value)return bad("Choose your name, then tap Print again.",$("lbSt"));
+      if(!$("lbSt").value)return bad("Choose your nickname, then tap Print again.",$("lbSt"));
       if(!$("lbPw").value)return bad("Enter your password, then tap Print again.",$("lbPw"));
       if(!labOK){lbVerify().then(function(ok){if(ok)lbDoPrint(lbState());else bad("Wrong password. Try again.",$("lbPw"))});return}
     }
@@ -3510,25 +3512,25 @@ PLATFORM="zanganam88@gmail.com";
     var sel=$("lbSt"),sig=LST.map(function(x){return x.n}).join("\n");
     if(sel.dataset.sig!==sig){
       var cur=sel.value||lbLastWho();
-      sel.innerHTML='<option value="">Choose your name</option>'+LST.map(function(x){return '<option value="'+esc(x.n)+'">'+esc(x.n)+'</option>'}).join("");
+      sel.innerHTML='<option value="">Choose your nickname</option>'+LST.map(function(x){return '<option value="'+esc(x.n)+'">'+esc(x.n)+'</option>'}).join("");
       sel.dataset.sig=sig;sel.value=LST.some(function(x){return x.n===cur})?cur:"";
     }
-    if(mgr)$("lbstl").innerHTML=LST.length?LST.map(function(x,i){return '<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><b>'+esc(x.n)+'</b><button type="button" class="ghost" data-lse="'+i+'">Edit</button></div>'}).join(""):'<div class="meta">No staff yet. While the list is empty, anyone can print and the label shows the login name. Add staff to require a name and password before every print.</div>';
+    if(mgr)$("lbstl").innerHTML=LST.length?LST.map(function(x,i){return '<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><b>'+esc(x.n)+'</b><button type="button" class="ghost" data-lse="'+i+'">Edit</button></div>'}).join(""):'<div class="meta">No staff yet. While the list is empty, anyone can print and the label shows the login name. Add staff to require a nickname and password before every print.</div>';
     if(mgr)Array.prototype.forEach.call($("lbstl").querySelectorAll("[data-lse]"),function(b){b.onclick=function(){lbStaffForm(+b.dataset.lse)}});
   }
   function lbStaffSave(rows){return DB.doc("app/labstaff").set({rows:rows}).then(function(){LST=rows;lbStaffDraw();lbPreview()})}
   function lbStaffForm(i){
     var r=i>=0?LST[i]:{n:""};
     sheet('<h2 style="margin:0 0 10px">'+(i>=0?"Edit staff":"Add staff")+'</h2><div id="lsMsg"></div>'
-      +'<label class="wide">Name (shown on the label)<input id="lsN" value="'+esc(r.n)+'" autocomplete="off" maxlength="30"></label>'
+      +'<label class="wide">Nickname (shown on the label)<input id="lsN" value="'+esc(r.n)+'" autocomplete="off" maxlength="30"></label>'
       +'<label class="wide">'+(i>=0?"New password (leave empty to keep the old one)":"Password")+'<input id="lsP" type="text" autocomplete="off" autocapitalize="off" placeholder="at least 4 characters"></label>'
       +'<div class="row" style="margin-top:14px"><button id="lsS" type="button">Save</button><button id="lsX" type="button" class="ghost">Cancel</button>'+(i>=0?'<button id="lsD" type="button" class="ghost">Remove</button>':"")+'</div>');
     $("lsX").onclick=closeSheet;
     var err=function(t){$("lsMsg").innerHTML='<div style="color:'+RED+';font-weight:700;margin-bottom:8px">'+t+'</div>'};
     $("lsS").onclick=function(){
       var n=$("lsN").value.trim().replace(/\s+/g," "),pw=$("lsP").value;
-      if(!n)return err("Type the name.");
-      if(LST.some(function(x,k){return k!==i&&x.n.toLowerCase()===n.toLowerCase()}))return err("This name is already in the list.");
+      if(!n)return err("Type the nickname.");
+      if(LST.some(function(x,k){return k!==i&&x.n.toLowerCase()===n.toLowerCase()}))return err("This nickname is already in the list.");
       if(i<0&&pw.length<4)return err("The password needs at least 4 characters.");
       if(pw&&pw.length<4)return err("The password needs at least 4 characters.");
       $("lsS").disabled=true;
