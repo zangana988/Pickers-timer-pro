@@ -3157,7 +3157,7 @@ PLATFORM="zanganam88@gmail.com";
     +'</div>'
     +'<div id="lbmg" hidden><div class="row" style="margin:14px 0 0"><button id="lba" type="button" class="ghost">+ Add product</button></div></div>'
     +'<div id="lbim" hidden><details style="margin-top:16px"><summary>Import from Excel (first load or bulk update)</summary><div style="margin-top:10px">'
-    +'<div class="meta" style="margin-bottom:8px">Columns: article code, product name, short name and pick location. Products with the same article code are updated, new ones are added. If one article appears on several rows, the pick locations are joined.</div>'
+    +'<div class="meta" style="margin-bottom:8px">Columns: article code, product name, short name, size and pick location. Products with the same article code are updated, new ones are added. If one article appears on several rows, the pick locations are joined.</div>'
     +'<input id="lbf" type="file"><div class="meta" style="margin:12px 0 6px">Or copy the cells in Excel and paste them here:</div>'
     +'<textarea id="lbp" rows="4" placeholder="Paste cells here (with the header row)" style="width:100%"></textarea>'
     +'<div id="lbmap" style="margin-top:10px"></div>'
@@ -3171,13 +3171,10 @@ PLATFORM="zanganam88@gmail.com";
       +'.lbs{container-type:inline-size;position:relative;width:100%;background:#fff;color:#000;box-sizing:border-box;-webkit-text-size-adjust:100%;text-size-adjust:100%}'
       +'.lbs.land{aspect-ratio:410/287}'
       +'.lbi{box-sizing:border-box;position:absolute;left:0;top:0;right:0;bottom:0;border:.5cqw solid #000;padding:.7cqw .9cqw;display:flex;flex-direction:column;font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}'
-      +'.lnm{flex:5 1 0;min-height:0;display:flex}'
-      +'.lrow{flex:3 1 0;min-height:0;display:flex;border-top:.5cqw solid #000}'
-      +'.lc{flex:1 1 0;min-width:0;min-height:0;display:flex;flex-direction:column;padding-top:0}'
-      +'.lc+.lc{border-left:.5cqw solid #000}'
+      +'.lr{flex:1 1 0;min-height:0;display:flex;flex-direction:column}'
       +'.fb{flex:1 1 0;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}'
-      +'.ft{display:block;text-align:center;font-weight:900;line-height:.92;white-space:nowrap}.nl{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%}.ln{display:block;text-align:center;font-weight:900;line-height:.92;white-space:nowrap}'
-      +'.lft{flex:none;display:flex;justify-content:space-between;gap:2cqw;border-top:.3cqw solid #000;margin-top:1cqw;padding-top:.7cqw;font-size:1.6cqw;font-weight:900;line-height:1.25}'
+      +'.ft{display:block;text-align:center;font-weight:900;line-height:.88;white-space:nowrap}.nl{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%}.ln{display:block;text-align:center;font-weight:900;line-height:.88;white-space:nowrap}'
+      +'.lft{flex:none;display:flex;justify-content:center;gap:2cqw;border-top:.3cqw solid #000;margin-top:1cqw;padding-top:.7cqw;font-size:1.6cqw;font-weight:900;line-height:1.25}'
       +'@media print{body>*:not(#lbPrint){display:none!important}'
       +'html,body{background:#fff!important;margin:0!important;padding:0!important;height:auto!important;overflow:visible!important}'
       +'#lbPrint{display:block!important}'
@@ -3205,7 +3202,7 @@ PLATFORM="zanganam88@gmail.com";
     },function(){lbMsg("Cannot read the product list. Check your connection and access.",true)});
   }
   function nk(s){return String(s==null?"":s).trim().toLowerCase().replace(/^0+(?=.)/,"")}
-  function lbClean(r){var c=function(v){return String(v==null?"":v).trim().replace(/\.0+$/,"")};return {a:c(r.a),p:c(r.p),s:c(r.s),l:c(r.l)}}
+  function lbClean(r){var c=function(v){return String(v==null?"":v).trim().replace(/\.0+$/,"")};return {a:c(r.a),p:c(r.p),s:c(r.s),z:c(r.z),l:c(r.l)}}
   function lbFind(k){if(!k)return -1;for(var i=0;i<LAB.length;i++)if(nk(LAB[i].a)===k)return i;return -1}
   function labSave(list){
     var chunks=[],i;for(i=0;i<list.length;i+=LCH)chunks.push(list.slice(i,i+LCH));
@@ -3222,61 +3219,71 @@ PLATFORM="zanganam88@gmail.com";
     var n=Math.round(+String($("lbN").value).replace(",","."))||0,e=$("lbE").value,c=Math.max(1,Math.min(20,Math.round(+$("lbC").value)||1));
     return {r:r,n:n,e:e,c:c,or:"landscape",ok:!!(r&&n>0&&parseISO(e))};
   }
-  // the label itself: big short name, boxes and expiry, tiny location and staff name (values only)
+  // the label: number of boxes, short name, size, expiry date - one after another - and one small line with staff name and location
   function lbSheet(o){
+    var row=function(r,inner){return '<div class="lr" data-r="'+r+'"><div class="fb" data-k="'+(r==="n"?"name":"one")+'"'+(r==="n"?' data-t="'+esc(o.name||"")+'"':"")+'>'+inner+'</div></div>'},
+        one=function(t){return '<span class="ft">'+esc(t)+'</span>'};
     return '<div class="lbs land"><div class="lbi">'
-      +'<div class="lnm"><div class="fb" data-k="name" data-t="'+esc(o.name||"")+'"><div class="nl"></div></div></div>'
-      +'<div class="lrow">'
-        +'<div class="lc"><div class="fb" data-k="one"><span class="ft">'+esc(o.boxes)+'</span></div></div>'
-        +'<div class="lc"><div class="fb" data-k="one"><span class="ft">'+esc(o.exp)+'</span></div></div>'
-      +'</div>'
-      +'<div class="lft"><span>'+esc(o.loc||"-")+'</span><span>'+esc(o.by||"")+' &middot; '+esc(o.when||"")+'</span></div>'
+      +row("b",one(o.boxes))
+      +row("n",'<div class="nl"></div>')
+      +(o.size?row("s",one(o.size)):"")
+      +row("e",one(o.exp))
+      +'<div class="lft"><span>'+esc(o.by||"")+' &middot; '+esc(o.loc||"-")+' &middot; '+esc(o.when||"")+'</span></div>'
       +'</div></div>';
   }
-  // Smart fit: measure the real text, then
-  //  - the row with boxes + expiry gets just the height it needs and both fill the full width at one equal size,
-  //  - the name is split over 1-5 lines in the best way (every line fills the full width, no word is ever cut),
-  //  - any small gap left at the sides is closed by stretching the letters slightly (max 12%).
+  // Smart fit: every line is stretched to the full width (no word is ever cut), the name is split over 1-5 lines in the way
+  // that gives the biggest letters, the height is shared so nothing is wasted, and small side gaps are closed by stretching letters (max 12%).
   function lbFit(root){
     var sh=root.querySelector(".lbs");if(!sh)return;
     var SW=sh.clientWidth;if(!SW)return;
-    var u=100/SW,LH=.92,SAFE=.985,STR=1.12,i,j;
-    var lnm=sh.querySelector(".lnm"),lrow=sh.querySelector(".lrow"),lcs=sh.querySelectorAll(".lc"),nm=sh.querySelector('.fb[data-k="name"]'),ones=sh.querySelectorAll('.fb[data-k="one"]'),nl=nm.firstChild;
+    var u=100/SW,LH=.88,SAFE=.985,STR=1.12,i;
+    var R={};Array.prototype.forEach.call(sh.querySelectorAll(".lr"),function(e){R[e.dataset.r]=e});
+    var nm=R.n.firstChild,nl=nm.firstChild;
     var mm=document.createElement("span");mm.style.cssText="position:absolute;left:0;top:0;visibility:hidden;white-space:nowrap;font-weight:900;font-size:100px;line-height:1;letter-spacing:0;padding:0;margin:0;pointer-events:none";
     sh.querySelector(".lbi").appendChild(mm);
     function m(t){mm.textContent=t;return mm.offsetWidth/100}
-    var clamp=function(v,a,b){return Math.max(a,Math.min(b,v))};
-    // ---- boxes + expiry row ----
-    var t0=ones[0].firstChild.textContent,t1=ones[1].firstChild.textContent,mb=m(t0),me=m(t1);
-    var Htot=lnm.clientHeight+lrow.clientHeight,sep=.5*SW/100,Frw=(lrow.clientWidth-sep)/(mb+me)*SAFE;
-    var rho=clamp((Frw*LH+1.2*SW/100)/Htot,.2,.46);
-    lnm.style.flex=(1-rho)+" 1 0";lrow.style.flex=rho+" 1 0";lcs[0].style.flex=mb+" 1 0";lcs[1].style.flex=me+" 1 0";
-    var F=Math.min(Frw,ones[0].clientHeight/LH*SAFE),ms=[mb,me];
-    for(i=0;i<2;i++){
-      var sp=ones[i].firstChild,w=ones[i].clientWidth,s=clamp(w*SAFE/(ms[i]*F),1,STR);
-      sp.style.fontSize=(F*u).toFixed(3)+"cqw";sp.style.transform=s>1.001?"scaleX("+s.toFixed(3)+")":"none";
-    }
-    // ---- name ----
-    var W=nm.clientWidth*SAFE,H=nm.clientHeight*SAFE,words=(nm.dataset.t||"").split(/\s+/).filter(Boolean),best=null;
+    var W=nm.clientWidth*SAFE,H=0;
+    ["b","n","s","e"].forEach(function(k){if(R[k])H+=R[k].clientHeight});H*=SAFE;
+    var words=(nm.dataset.t||"").split(/\s+/).filter(Boolean);
     if(!words.length)words=[""];
     if(words.length>12)words=[words.join(" ")];
-    var nw=words.length;
-    for(var mask=0;mask<(1<<(nw-1));mask++){
-      var lines=[],cur=[words[0]];
-      for(i=1;i<nw;i++){if((mask>>(i-1))&1){lines.push(cur.join(" "));cur=[words[i]]}else cur.push(words[i])}
-      lines.push(cur.join(" "));
-      if(lines.length>5)continue;
-      var Fi=lines.map(function(x){return W/m(x)}),tot=0,minF=1e9;
-      Fi.forEach(function(f){tot+=f*LH;minF=Math.min(minF,f)});
-      var k=Math.min(1,H/tot),score=k*minF;
-      if(!best||score>best.score*1.0005)best={lines:lines,F:Fi,k:k,score:score};
+    var dsc=function(t){return /[gjpqy]/.test(t)?1.12:.88},LN=dsc(words.join(" "));
+    function nameFit(Hn){
+      var nw=words.length,best=null;
+      for(var mask=0;mask<(1<<(nw-1));mask++){
+        var lines=[],cur=[words[0]],j;
+        for(j=1;j<nw;j++){if((mask>>(j-1))&1){lines.push(cur.join(" "));cur=[words[j]]}else cur.push(words[j])}
+        lines.push(cur.join(" "));
+        if(lines.length>5)continue;
+        var Fi=lines.map(function(x){return W/m(x)}),tot=0,minF=1e9;
+        Fi.forEach(function(f){tot+=f*LN;minF=Math.min(minF,f)});
+        var k=Math.min(1,Hn/tot),score=k*minF;
+        if(!best||score>best.score*1.0005)best={lines:lines,F:Fi,k:k,score:score,used:tot*k};
+      }
+      return best;
     }
+    var tx={b:R.b.firstChild.firstChild.textContent,e:R.e.firstChild.firstChild.textContent,s:R.s?R.s.firstChild.firstChild.textContent:""};
+    var mw={b:m(tx.b),e:m(tx.e),s:R.s?m(tx.s):1},LS=dsc(tx.s);
+    var cap={b:H*.22,s:H*.14,e:1e9},F={b:0,s:0,e:0},res,it;
+    for(it=0;it<10;it++){
+      F.b=Math.min(W/mw.b,cap.b/LH);F.e=Math.min(W/mw.e,cap.e/LH);F.s=R.s?Math.min(W/mw.s,cap.s/LS):0;
+      var fixed=(F.b+F.e)*LH+F.s*LS;
+      res=nameFit(H-fixed);
+      var left=H-fixed-res.used,cb=W/mw.b*LH>cap.b+.5,cs=!!R.s&&W/mw.s*LS>cap.s+.5;
+      if(left<2||(!cb&&!cs))break;
+      var part=left/((cb?1:0)+(cs?1:0));if(cb)cap.b+=part;if(cs)cap.s+=part;
+    }
+    R.b.style.flex=F.b*LH+" 1 0";R.n.style.flex=res.used+" 1 0";R.e.style.flex=F.e*LH+" 1 0";if(R.s)R.s.style.flex=F.s*LS+" 1 0";
+    var ones=[];
+    ["b","s","e"].forEach(function(k){
+      if(!R[k])return;var box=R[k].firstChild,sp=box.firstChild,s=Math.max(1,Math.min(STR,W/(mw[k]*F[k])));
+      sp.style.lineHeight=k==="s"?LS:LH;sp.style.fontSize=(F[k]*u).toFixed(3)+"cqw";sp.style.transform=s>1.001?"scaleX("+s.toFixed(3)+")":"none";ones.push(box);
+    });
     var h="";
-    best.lines.forEach(function(x,i){
-      h+='<span class="ln" style="font-size:'+(best.F[i]*best.k*u).toFixed(3)+'cqw;transform:'+(best.k<.995?"scaleX("+Math.min(STR,1/best.k).toFixed(3)+")":"none")+'">'+esc(x)+'</span>';
+    res.lines.forEach(function(x,i){
+      h+='<span class="ln" style="line-height:'+LN+';font-size:'+(res.F[i]*res.k*u).toFixed(3)+'cqw;transform:'+(res.k<.995?"scaleX("+Math.min(STR,1/res.k).toFixed(3)+")":"none")+'">'+esc(x)+'</span>';
     });
     nl.innerHTML=h;
-    // ---- safety: if anything is still too big (other fonts, rounding) shrink it a little until it fits ----
     function fits(box,els){
       var bw=box.clientWidth+.5,bh=box.clientHeight+.5,th=0,ok=true;
       Array.prototype.forEach.call(els,function(e){var r=e.getBoundingClientRect();th+=e.offsetHeight;if(r.width>bw)ok=false});
@@ -3286,7 +3293,7 @@ PLATFORM="zanganam88@gmail.com";
       for(var n=0;n<10&&!fits(box,els);n++)Array.prototype.forEach.call(els,function(e){e.style.fontSize=(parseFloat(e.style.fontSize)*.97).toFixed(3)+"cqw"});
     }
     shrink(nm,nl.querySelectorAll(".ln"));
-    for(i=0;i<2;i++)shrink(ones[i],[ones[i].firstChild]);
+    ones.forEach(function(b){shrink(b,[b.firstChild])});
     mm.remove();
   }
   function lbPreview(){
@@ -3294,7 +3301,7 @@ PLATFORM="zanganam88@gmail.com";
     if(lb.hidden)return;
     if(!s.r){host.innerHTML="";return}
     var now=new Date(),when=p2(now.getDate())+"-"+p2(now.getMonth()+1)+"-"+now.getFullYear()+" "+p2(now.getHours())+":"+p2(now.getMinutes());
-    host.innerHTML=lbSheet({name:s.r.s||s.r.p||s.r.a,boxes:s.n>0?String(s.n):"--",exp:s.e?dmy(s.e):"--",loc:s.r.l,by:lbWho(),when:when,or:s.or});
+    host.innerHTML=lbSheet({name:s.r.s||s.r.p||s.r.a,size:s.r.z,boxes:s.n>0?String(s.n):"--",exp:s.e?dmy(s.e):"--",loc:s.r.l,by:lbWho(),when:when,or:s.or});
     lbFit(host);
     $("lbP").disabled=!s.ok;
     $("lbNeed").textContent=s.ok?"":(s.n>0?"Choose the expiry date to print.":(s.e?"Type the number of boxes to print.":"Type the number of boxes and choose the expiry date to print."));
@@ -3330,7 +3337,7 @@ PLATFORM="zanganam88@gmail.com";
       var r=LAB[labSel];
       $("lbCard").innerHTML='<div style="font-weight:900;font-size:22px;overflow-wrap:anywhere">'+esc(r.s||r.p||r.a)+'</div>'
         +(r.p&&r.s?'<div style="font-size:15px;margin-top:2px;overflow-wrap:anywhere">'+esc(r.p)+'</div>':"")
-        +'<div class="meta" style="margin-top:6px;font-size:15px">Article '+esc(r.a)+' &middot; Pick location: <b>'+esc(r.l||"-")+'</b></div>'
+        +'<div class="meta" style="margin-top:6px;font-size:15px">Article '+esc(r.a)+(r.z?' &middot; '+esc(r.z):"")+' &middot; Pick location: <b>'+esc(r.l||"-")+'</b></div>'
         +(mgr?'<button id="lbEd" type="button" class="ghost" style="margin-top:8px;width:auto">Edit product</button>':"");
       if($("lbEd"))$("lbEd").onclick=function(){lbForm(labSel)};
       sug.innerHTML="";
@@ -3353,14 +3360,14 @@ PLATFORM="zanganam88@gmail.com";
   var lbRz=0;window.addEventListener("resize",function(){clearTimeout(lbRz);lbRz=setTimeout(function(){if(!lb.hidden&&labSel>=0)lbPreview()},250)});
   // ----- add / edit (manager) -----
   function lbForm(i){
-    var r=i>=0?LAB[i]:{a:"",p:"",s:"",l:""};
+    var r=i>=0?LAB[i]:{a:"",p:"",s:"",z:"",l:""};
     var f=function(id,lbl,v){return '<label class="wide">'+lbl+'<input id="'+id+'" value="'+esc(v==null?"":v)+'" autocomplete="off"></label>'};
     sheet('<h2 style="margin:0 0 10px">'+(i>=0?"Edit product":"Add product")+'</h2><div id="lfMsg"></div>'
-      +f("lfA","Article code",r.a)+f("lfP","Product name",r.p)+f("lfS","Short name (printed big on the label)",r.s)+f("lfL","Pick location",r.l)
+      +f("lfA","Article code",r.a)+f("lfP","Product name",r.p)+f("lfS","Short name (printed big on the label)",r.s)+f("lfZ","Size (printed on the label)",r.z)+f("lfL","Pick location",r.l)
       +'<div class="row" style="margin-top:14px"><button id="lfS2" type="button">Save</button><button id="lfX" type="button" class="ghost">Cancel</button>'+(i>=0?'<button id="lfD" type="button" class="ghost">Delete</button>':"")+'</div>');
     $("lfX").onclick=closeSheet;
     $("lfS2").onclick=function(){
-      var o=lbClean({a:$("lfA").value,p:$("lfP").value,s:$("lfS").value,l:$("lfL").value}),e=$("lfMsg");
+      var o=lbClean({a:$("lfA").value,p:$("lfP").value,s:$("lfS").value,z:$("lfZ").value,l:$("lfL").value}),e=$("lfMsg");
       if(!o.a){e.innerHTML='<div style="color:'+RED+';font-weight:700;margin-bottom:8px">Type the article code.</div>';return}
       if(!o.p&&!o.s){e.innerHTML='<div style="color:'+RED+';font-weight:700;margin-bottom:8px">Type the product name or the short name.</div>';return}
       var list=LAB.slice(),dup=lbFind(nk(o.a));
@@ -3377,11 +3384,11 @@ PLATFORM="zanganam88@gmail.com";
   }
   $("lba").onclick=function(){lbForm(-1)};
   // ----- import -----
-  var LF=[["a","Article code"],["p","Product name"],["s","Short name"],["l","Pick location"]];
-  var LRX={s:/short|kort|abbr|alias|label/i,a:/^(art|sku|code|item|ean|ref)|article|artikel|product.?(code|nr|no|number)/i,l:/loc|pick|plaats|bin|slot|positi|address|adres/i,p:/product|name|desc|omschr|naam/i};
+  var LF=[["a","Article code"],["p","Product name"],["s","Short name"],["z","Size"],["l","Pick location"]];
+  var LRX={s:/short|kort|abbr|alias|label/i,a:/^(art|sku|code|item|ean|ref)|article|artikel|product.?(code|nr|no|number)/i,l:/loc|pick|plaats|bin|slot|positi|address|adres/i,z:/size|grootte|maat|inhoud|content|volume|format|pack|verpakking|afmeting/i,p:/product|name|desc|omschr|naam/i};
   function lbGuess(head){
     var used={},g={};
-    ["s","a","l","p"].forEach(function(k){
+    ["s","a","l","z","p"].forEach(function(k){
       for(var c=0;c<head.length;c++){if(used[c])continue;if(LRX[k].test(String(head[c]||""))){g[k]=c;used[c]=1;break}}
     });
     return g;
@@ -3405,10 +3412,10 @@ PLATFORM="zanganam88@gmail.com";
     var list=LAB.slice(),idx={},seen={},add=0,upd=0,skipped=0;
     list.forEach(function(o,i){idx[nk(o.a)]=i});
     labImp.rows.forEach(function(r){
-      var o=lbClean({a:get(r,"a"),p:get(r,"p"),s:get(r,"s"),l:get(r,"l")});
+      var o=lbClean({a:get(r,"a"),p:get(r,"p"),s:get(r,"s"),z:get(r,"z"),l:get(r,"l")});
       if(!o.a||(!o.p&&!o.s)){skipped++;return}
       var k=nk(o.a);
-      if(seen[k]){var t=list[idx[k]];if(o.l&&(" · "+t.l+" · ").indexOf(" · "+o.l+" · ")<0)t.l=t.l?t.l+" · "+o.l:o.l;if(!t.s&&o.s)t.s=o.s;if(!t.p&&o.p)t.p=o.p;return}
+      if(seen[k]){var t=list[idx[k]];if(o.l&&(" · "+t.l+" · ").indexOf(" · "+o.l+" · ")<0)t.l=t.l?t.l+" · "+o.l:o.l;if(!t.s&&o.s)t.s=o.s;if(!t.z&&o.z)t.z=o.z;if(!t.p&&o.p)t.p=o.p;return}
       seen[k]=1;
       if(idx[k]!=null){list[idx[k]]=o;upd++}else{idx[k]=list.length;list.push(o);add++}
     });
