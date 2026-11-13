@@ -319,7 +319,8 @@ rr();render();stats();setInterval(render,1000);
         var cd=c.exists?c.data():{};
         if(cd.active===false){noAccess(u,"This company account is suspended. Please contact support.");return}
         CID=m.cid;ROLE=m.role||"staff";COMP=cd;CFG=Object.assign({},CFG,cd.settings||{});
-        window.SCANNER=!!m.scanner;window.SCANNER_PICKER=m.scanner?(m.picker||""):"";window.INBOUND=!!m.inbound;window.MEMNAME=m.name||"";
+        window.SCANNER=!!m.scanner;window.SCANNER_PICKER=m.scanner?(m.picker||""):"";var pgs=(m.role==="owner"||m.scanner||m.role==="display")?null:(Array.isArray(m.pages)?m.pages.slice():(m.inbound?["pal","lab"]:["pick"]));
+        window.PAGES=pgs;window.INBOUND=!!pgs&&pgs.indexOf("pick")<0;window.MEMNAME=m.name||"";
         if(m.scanner&&new URLSearchParams(location.search).get("me")!=="1"){var q2=new URLSearchParams(location.search);q2.set("me","1");q2.delete("display");location.replace(location.pathname+"?"+q2.toString().replace(/%40/g,"@"));return}
         applyBrand();window.dispatchEvent(new Event("rolechange"));go();view("app");
       });
@@ -568,32 +569,52 @@ rr();render();stats();setInterval(render,1000);
   $("so").parentNode.insertAdjacentElement("afterend",w);
   var md=document.createElement("div");md.hidden=true;
   md.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))";
-  md.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">Staff access</h1><button id="sx" type="button" class="ghost">Close</button></div><div class="meta" style="margin-bottom:8px">Type the full name and email of the person, then tap Give access. They open the app, tap "First time? Create my password", choose a password and verify their email. Remove someone to lock them out immediately.</div><input id="sn" placeholder="Full name (first and last name)" autocomplete="off" style="margin-bottom:8px"><input id="sm" type="email" placeholder="email@example.com" autocomplete="off"><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sd" type="checkbox" style="width:auto"> Display tablet only (read-only, for the pickers)</label><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sp" type="checkbox" style="width:auto"> Picker scanner login (shows only the picker screen)</label><select id="spn" hidden style="margin-bottom:8px"></select><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="si" type="checkbox" style="width:auto"> Inbound staff login (shows only the Palletization guide)</label><div class="row"><button id="sa" type="button">Give access</button></div><div id="sl"></div></div>';
+  md.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">Staff access</h1><button id="sx" type="button" class="ghost">Close</button></div><div class="meta" style="margin-bottom:8px">Type the full name and email of the person, then tap Give access. They open the app, tap "First time? Create my password", choose a password and verify their email. Remove someone to lock them out immediately.</div><input id="sn" placeholder="Full name (first and last name)" autocomplete="off" style="margin-bottom:8px"><input id="sm" type="email" placeholder="email@example.com" autocomplete="off"><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sd" type="checkbox" style="width:auto"> Display tablet only (read-only, for the pickers)</label><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sp" type="checkbox" style="width:auto"> Picker scanner login (shows only the picker screen)</label><select id="spn" hidden style="margin-bottom:8px"></select><div id="spgs" style="margin:10px 0"><div style="font-weight:700;margin-bottom:4px">Pages this person can open (tick):</div><label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input id="pk_pick" type="checkbox" style="width:auto" checked> Pickers management</label><label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input id="pk_exp" type="checkbox" style="width:auto"> Expirations management</label><label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input id="pk_map" type="checkbox" style="width:auto"> Warehouse Map</label><label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input id="pk_pal" type="checkbox" style="width:auto"> Palletization guide</label><label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input id="pk_lab" type="checkbox" style="width:auto"> Pallet labels</label></div><div class="row"><button id="sa" type="button">Give access</button></div><div id="sl"></div></div>';
   document.body.appendChild(md);
-  function lab(r,x){return x&&x.inbound?"Inbound staff":x&&x.scanner?"Picker scanner"+(x.picker?" · "+x.picker:" · picker chooses"):r==="owner"?"Manager":r==="display"?"Display tablet":"Supervisor"}
+  var PGK=[["pick","Pickers management","Pickers"],["exp","Expirations management","Expirations"],["map","Warehouse Map","Map"],["pal","Palletization guide","Palletization"],["lab","Pallet labels","Labels"]];
+  function effPages(x){return Array.isArray(x&&x.pages)?x.pages:(x&&x.inbound?["pal","lab"]:["pick"])}
+  function lab(r,x){return r==="owner"?"Manager":x&&x.scanner?"Picker scanner"+(x.picker?" · "+x.picker:" · picker chooses"):r==="display"?"Display tablet":"Pages: "+PGK.filter(function(k){return effPages(x).indexOf(k[0])>=0}).map(function(k){return k[2]}).join(", ")}
   function fillSp(){var sel=$("spn"),cur=sel.value,h='<option value="">Any picker (the picker chooses on the scanner)</option>';(S.roster||[]).forEach(function(n){h+='<option value="'+esc(n)+'">Only '+esc(n)+'</option>'});sel.innerHTML=h;sel.value=cur}
-  setTimeout(function(){$("sp").onchange=function(){$("spn").hidden=!this.checked;if(this.checked){fillSp();$("sd").checked=false;$("si").checked=false}};$("sd").onchange=function(){if(this.checked){$("sp").checked=false;$("si").checked=false;$("spn").hidden=true}};$("si").onchange=function(){if(this.checked){$("sp").checked=false;$("sd").checked=false;$("spn").hidden=true}}},0);
+  function showPages(){$("spgs").hidden=$("sd").checked||$("sp").checked}
+  setTimeout(function(){$("sp").onchange=function(){$("spn").hidden=!this.checked;if(this.checked){fillSp();$("sd").checked=false}showPages()};$("sd").onchange=function(){if(this.checked){$("sp").checked=false;$("spn").hidden=true}showPages()}},0);
   function draw(){
-    $("sl").innerHTML=list.length?list.map(function(x){return '<div class="h"><span><b>'+esc(x.name||"(no name yet)")+'</b><br><span class="meta">'+esc(x.email)+' · '+lab(x.role,x)+'</span></span>'+(x.role==="owner"?'':'<button class="ghost" data-e="'+esc(x.email)+'" type="button">Remove</button>')+'</div>'}).join(""):'<div class="empty">No one added yet.</div>';
+    $("sl").innerHTML=list.length?list.map(function(x){
+      var em=esc(x.email),cp=x.role==="staff"&&!x.scanner,ep=effPages(x);
+      return '<div class="h"><span><b>'+esc(x.name||"(no name yet)")+'</b><br><span class="meta">'+em+' · '+lab(x.role,x)+'</span></span><span style="display:flex;gap:6px">'+(cp?'<button class="ghost" data-pp="'+em+'" type="button">Pages</button>':'')+(x.role==="owner"?'':'<button class="ghost" data-e="'+em+'" type="button">Remove</button>')+'</span></div>'
+        +(cp?'<div data-pn="'+em+'" hidden style="padding:4px 10px 12px">'+PGK.map(function(k){return '<label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" data-k="'+k[0]+'" style="width:auto"'+(ep.indexOf(k[0])>=0?' checked':'')+'> '+k[1]+'</label>'}).join("")+'<button type="button" data-ps="'+em+'">Save pages</button></div>':'');
+    }).join(""):'<div class="empty">No one added yet.</div>';
   }
+
   $("sa").onclick=function(){
     var em=$("sm").value.trim().toLowerCase(),nm=$("sn").value.trim(),u=firebase.auth().currentUser;
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){alert("Type a valid email address.");return}
     if(!nm){alert("Type the full name (first and last name).");return}
     if(!RAW||!u||!CID)return;
-    var role=$("sd").checked?"display":"staff",b=RAW.batch(),sc=$("sp").checked,ib=$("si").checked,pk=sc?$("spn").value:"",ex=sc?{scanner:true,picker:pk}:ib?{inbound:true}:{};
+    var role=$("sd").checked?"display":"staff",b=RAW.batch(),sc=$("sp").checked,pk=sc?$("spn").value:"",pages=[];
+    PGK.forEach(function(k){if($("pk_"+k[0]).checked)pages.push(k[0])});
+    if(role==="staff"&&!sc&&!pages.length){alert("Tick at least one page.");return}
+    var ex=sc?{scanner:true,picker:pk}:role==="staff"?{pages:pages}:{};
     b.set(RAW.doc("members/"+em),Object.assign({email:em,cid:CID,role:role,name:nm,by:u.email,at:Date.now()},ex));
     b.set(DB.doc("people/"+em),Object.assign({email:em,name:nm,role:role},ex));
-    b.commit().then(function(){lg("Gave access / set name",nm+" · "+em+(role==="display"?" (display only)":"")+(sc?" (picker scanner"+(pk?" for "+pk:"")+")":"")+(ib?" (inbound staff)":""));$("sm").value="";$("sn").value="";$("sd").checked=false;$("sp").checked=false;$("si").checked=false;$("spn").hidden=true}).catch(function(e){
+    b.commit().then(function(){lg("Gave access / set name",nm+" · "+em+(role==="display"?" (display only)":"")+(sc?" (picker scanner"+(pk?" for "+pk:"")+")":"")+(role==="staff"&&!sc?" (pages: "+pages.join(", ")+")":""));$("sm").value="";$("sn").value="";$("sd").checked=false;$("sp").checked=false;PGK.forEach(function(k){$("pk_"+k[0]).checked=k[0]==="pick"});$("spn").hidden=true;showPages()}).catch(function(e){
       if(e&&e.code==="permission-denied")alert("This email cannot be added. It may already belong to another company, or it is a manager account.");else dbe(e);
     });
   };
   $("sl").onclick=function(e){
     var b=e.target.closest("button");if(!b||!RAW)return;
-    var em=b.dataset.e;
+    if(b.dataset.pp){var pn0=$("sl").querySelector('[data-pn="'+b.dataset.pp+'"]');if(pn0)pn0.hidden=!pn0.hidden;return}
+    if(b.dataset.ps){
+      var em2=b.dataset.ps,pn=$("sl").querySelector('[data-pn="'+em2+'"]'),pages=[];
+      Array.prototype.forEach.call(pn.querySelectorAll("input[data-k]"),function(c){if(c.checked)pages.push(c.dataset.k)});
+      if(!pages.length){alert("Tick at least one page.");return}
+      var bb=RAW.batch();bb.update(RAW.doc("members/"+em2),{pages:pages});bb.set(DB.doc("people/"+em2),{pages:pages},{merge:true});
+      bb.commit().then(function(){lg("Changed pages",em2+" · "+pages.join(", "));alert("Saved. The new pages show when they open the app again.")}).catch(dbe);return;
+    }
+    var em=b.dataset.e;if(!em)return;
     if(!confirm("Remove access for "+em+"? They will be locked out immediately."))return;
     RAW.doc("members/"+em).delete().then(function(){lg("Removed access",em)}).catch(dbe);
   };
+
   $("stb").onclick=function(){md.hidden=false;document.body.style.overflow="hidden";draw()};
   $("sx").onclick=function(){md.hidden=true;document.body.style.overflow=""};
   onRole(function(){
@@ -1652,25 +1673,36 @@ PLATFORM="zanganam88@gmail.com";
   };
   setInterval(function(){checkSub();abLabel()},3000);checkSub();abLabel();
 
+  var hubUser=false,lightUser=false;
+  function canP(k){return ROLE==="owner"||(!!window.PAGES&&window.PAGES.indexOf(k)>=0)}
   function sync(){
     var own=ROLE==="owner"&&!ap.hidden;
-    var inb=!!window.INBOUND&&ROLE!=="owner"&&!ap.hidden;
-    pg.hidden=!((own&&page==="pal")||(inb&&page!=="lab"));
-    if(typeof lb!=="undefined"&&lb)lb.hidden=!((own||inb)&&page==="lab");
-    if(own||inb){palSub();if(typeof labSub==="function")labSub()}
+    var PG=(!own&&!ap.hidden&&ROLE!=="owner"&&window.PAGES)||null;          // pages ticked for this person (null = manager or a plain screen)
+    var can=function(k){return own||(!!PG&&PG.indexOf(k)>=0)};
+    var light=!!PG&&PG.every(function(k){return k==="pal"||k==="lab"});     // only the guide and/or labels: no menu, direct links
+    var hubU=own||(!!PG&&!light&&(PG.length>1||PG[0]==="exp"||PG[0]==="map"));
+    hubUser=hubU;lightUser=light;
+    if(light&&page==="menu")page=PG.indexOf("pal")>=0?"pal":"lab";
+    if(light&&page==="pal"&&!can("pal"))page="lab";
+    if(light&&page==="lab"&&!can("lab"))page="pal";
+    pg.hidden=!(can("pal")&&page==="pal");
+    if(typeof lb!=="undefined"&&lb)lb.hidden=!(can("lab")&&page==="lab");
+    if(can("pal"))palSub();
+    if(can("lab")&&typeof labSub==="function")labSub();
     ai.hidden=ab.hidden=ap.hidden||!!window.INBOUND||!ROLE||ROLE==="display"||!!window.SCANNER||/[?&]me=1/.test(location.search);
     if(ap.hidden)page="menu";
-    hub.hidden=!(own&&page==="menu");ex.hidden=!(own&&page==="exp");if(typeof wm!=="undefined"&&wm)wm.hidden=!(own&&page==="map");mb.hidden=!own;
+    hub.hidden=!(hubU&&page==="menu");ex.hidden=!(can("exp")&&page==="exp");if(typeof wm!=="undefined"&&wm)wm.hidden=!(can("map")&&page==="map");mb.hidden=!hubU;
+    $("hp").hidden=!can("pick");$("he").hidden=!can("exp");$("hm").hidden=!can("map");$("hg").hidden=!can("pal");$("hlab").hidden=!can("lab");$("hpin").hidden=!own;
     var cu=firebase.auth().currentUser;
     $("hall").hidden=!(cu&&(cu.email||"").toLowerCase()===PLATFORM.toLowerCase());
     $("hpush").hidden=!(cu&&(cu.email||"").toLowerCase()===PLATFORM.toLowerCase());
-    if(own){$("hco").textContent=COMP&&COMP.name||"";subscribe();drawHub()}
+    if(hubU)$("hco").textContent=COMP&&COMP.name||"";
+    if(can("exp")||can("map")){subscribe();drawHub()}
   }
   new MutationObserver(sync).observe(ap,{attributes:true,attributeFilter:["hidden"]});
   window.addEventListener("rolechange",sync);
   $("hp").onclick=function(){page="pick";sync()};
-  // opened from a phone notification: show the pickers page (the confirm / approve buttons are on top of it)
-  function goPick(){if(ROLE==="owner"){page="pick";sync()}try{window.scrollTo(0,0)}catch(e){}}
+  function goPick(){if(ROLE==="owner"||(hubUser&&canP("pick"))){page="pick";sync()}try{window.scrollTo(0,0)}catch(e){}}
   if(/[?&]go=pickers/.test(location.search)){var gt0=0,gi=setInterval(function(){if(ROLE){goPick();clearInterval(gi)}else if(++gt0>40)clearInterval(gi)},250)}
   try{navigator.serviceWorker.addEventListener("message",function(e){if(e.data&&e.data.alphaGo==="pickers")goPick()})}catch(e){}
   $("he").onclick=function(){page="exp";sync();draw()};
@@ -1750,7 +1782,7 @@ PLATFORM="zanganam88@gmail.com";
 
   // ---------- shared data ----------
   function subscribe(){
-    if(sub||!DB||ROLE!=="owner")return;sub=true;
+    if(sub||!DB||!(ROLE==="owner"||canP("exp")||canP("map")))return;sub=true;
     DB.collection("app").onSnapshot(function(s){
       var pe=[],pb=[],pm=[],me_=null,mb_=null,mm_=null;
       s.docs.forEach(function(d){
@@ -3016,7 +3048,7 @@ PLATFORM="zanganam88@gmail.com";
   function palDraw(){
     if(!$("pgl"))return;
     var mgr=palMgr();
-    $("pgmg").hidden=!mgr;$("pgim").hidden=!mgr;$("pgm").hidden=!mgr;$("pgo").hidden=mgr||!window.INBOUND;$("pgl2").hidden=mgr||!window.INBOUND;
+    $("pgmg").hidden=!mgr;$("pgim").hidden=!mgr;$("pgm").hidden=!hubUser;$("pgo").hidden=hubUser||ROLE==="owner";$("pgl2").hidden=!(lightUser&&canP("lab")&&!hubUser);
     if($("hgs"))$("hgs").textContent=PAL.length?PAL.length+" product"+(PAL.length===1?"":"s"):"No products yet. Tap to add them.";
     var toks=palQ.toLowerCase().split(/[\s]+/).filter(Boolean),out=[];
     PAL.forEach(function(r,i){var hay=((r.a||"")+" "+(r.p||"")+" "+(r.t==="EUR"?"eur euro pallet":r.t==="Block"?"block blok pallet":"")).toLowerCase();for(var k=0;k<toks.length;k++)if(hay.indexOf(toks[k])<0)return;out.push(i)});
@@ -3152,8 +3184,9 @@ PLATFORM="zanganam88@gmail.com";
     +'<div class="meta" style="margin:14px 0 6px">Preview (the big text is sized automatically to fill the label):</div>'
     +'<div style="border:1px solid var(--line);box-shadow:0 2px 12px rgba(0,0,0,.18);border-radius:4px;overflow:hidden;background:#fff"><div id="lbPrev"></div></div>'
     +'<div id="lbNeed" class="meta" style="margin-top:8px;color:'+RED+';font-weight:700"></div>'
+    +'<div id="lbWho" hidden style="margin-top:12px"><div class="meta" style="margin-bottom:6px;font-weight:700">Who is printing? Choose your name and enter your password.</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><label>Your name<select id="lbSt"></select></label><label>Your password<input id="lbPw" type="password" autocomplete="off" autocapitalize="off" placeholder="Password"></label></div><div id="lbAuth" class="meta" style="margin-top:4px;min-height:18px"></div></div>'
     +'<div class="row" style="margin-top:10px"><button id="lbP" type="button" style="font-size:19px;padding:14px 18px">Print A3 label</button><button id="lbX" type="button" class="ghost">New label</button></div>'
-    +'<div class="meta" style="margin-top:8px">In the print window choose the A3 paper size and turn off headers, footers and "fit to page" scaling if you see them.</div>'
+    +'<div class="meta" style="margin-top:8px">Print opens the print window of this device with all the printers already added to it (on a computer, your installed printers; on iPad or iPhone, AirPrint). Choose your A3 printer there. Paper size A3 landscape is already selected for you.</div>'
     +'</div>'
     +'<div id="lbmg" hidden><div class="row" style="margin:14px 0 0"><button id="lba" type="button" class="ghost">+ Add product</button></div></div>'
     +'<div id="lbim" hidden><details style="margin-top:16px"><summary>Import from Excel (first load or bulk update)</summary><div style="margin-top:10px">'
@@ -3162,6 +3195,7 @@ PLATFORM="zanganam88@gmail.com";
     +'<textarea id="lbp" rows="4" placeholder="Paste cells here (with the header row)" style="width:100%"></textarea>'
     +'<div id="lbmap" style="margin-top:10px"></div>'
     +'<div class="row" style="margin-top:14px"><button id="lbclr" type="button" class="ghost">Delete the whole list</button></div></div></details></div>'
+    +'<div id="lbst" hidden><details style="margin-top:16px"><summary>Label staff: names and passwords</summary><div style="margin-top:10px"><div class="meta" style="margin-bottom:8px">Everyone who prints labels chooses their name and enters their own password first. Their name is printed on the label. This is a simple check for accountability, not bank-level security. If you forget a password, just set a new one.</div><div id="lbstl"></div><div class="row" style="margin-top:10px"><button id="lbsa" type="button" class="ghost">+ Add staff</button></div></div></details></div>'
     +'</div>';
   document.body.appendChild(lb);
   var lbp=document.createElement("div");lbp.id="lbPrint";document.body.appendChild(lbp);
@@ -3188,6 +3222,7 @@ PLATFORM="zanganam88@gmail.com";
   function labMgr(){return ROLE==="owner"}
   function labSub(){
     if(labOn||!DB)return;labOn=true;
+    DB.doc("app/labstaff").onSnapshot(function(d){LST=d.exists?(d.data().rows||[]):[];lbStaffDraw();if(!lb.hidden)lbPreview();if(labOK)lbVerify()},function(){});
     DB.doc("app/labmeta").onSnapshot(function(d){
       var m=d.exists?d.data():{n:0},seq=++labSeq,n=+m.n||0;LABM={n:n};
       var jobs=[];for(var i=0;i<n;i++)jobs.push(DB.doc("app/lab_"+i).get());
@@ -3301,19 +3336,30 @@ PLATFORM="zanganam88@gmail.com";
     if(lb.hidden)return;
     if(!s.r){host.innerHTML="";return}
     var now=new Date(),when=p2(now.getDate())+"-"+p2(now.getMonth()+1)+"-"+now.getFullYear()+" "+p2(now.getHours())+":"+p2(now.getMinutes());
-    host.innerHTML=lbSheet({name:s.r.s||s.r.p||s.r.a,size:s.r.z,boxes:s.n>0?String(s.n):"--",exp:s.e?dmy(s.e):"--",loc:s.r.l,by:lbWho(),when:when,or:s.or});
+    host.innerHTML=lbSheet({name:s.r.s||s.r.p||s.r.a,size:s.r.z,boxes:s.n>0?String(s.n):"--",exp:s.e?dmy(s.e):"--",loc:s.r.l,by:lbName()||"-",when:when,or:s.or});
     lbFit(host);
-    $("lbP").disabled=!s.ok;
     $("lbNeed").textContent=s.ok?"":(s.n>0?"Choose the expiry date to print.":(s.e?"Type the number of boxes to print.":"Type the number of boxes and choose the expiry date to print."));
   }
   function lbPrint(){
-    var s=lbState();if(!s.ok)return;
+    var s=lbState(),bad=function(t,f){$("lbNeed").textContent=t;try{f.focus()}catch(x){}};
+    if(!s.ok){
+      bad(s.n>0?"Choose the expiry date, then tap Print again.":(s.e?"Type the number of boxes, then tap Print again.":"Type the number of boxes and choose the expiry date, then tap Print again."),s.n>0?$("lbE"):$("lbN"));return;
+    }
+    if(LST.length){
+      if(!$("lbSt").value)return bad("Choose your name, then tap Print again.",$("lbSt"));
+      if(!$("lbPw").value)return bad("Enter your password, then tap Print again.",$("lbPw"));
+      if(!labOK){lbVerify().then(function(ok){if(ok)lbDoPrint(lbState());else bad("Wrong password. Try again.",$("lbPw"))});return}
+    }
+    lbDoPrint(s);
+  }
+  function lbDoPrint(s){
     lbPreview();
     var one=$("lbPrev").innerHTML,out="",i;for(i=0;i<s.c;i++)out+=one;
     $("lbPrint").innerHTML=out;
     $("lbPageCss").textContent="@page{size:A3 "+s.or+";margin:5mm}";
-    try{lg("Label printed",(s.r.a||"")+" · "+(s.r.s||s.r.p||"")+" · "+s.n+" boxes · exp "+dmy(s.e)+" · "+s.c+" copy")}catch(x){}
+    try{lg("Label printed",(s.r.a||"")+" · "+(s.r.s||s.r.p||"")+" · "+s.n+" boxes · exp "+dmy(s.e)+" · "+s.c+" copy · by "+lbName())}catch(x){}
     window.print();
+    $("lbPw").value="";labOK=false;lbAuthUI();       // the next person has to enter the password again
   }
   function lbSelect(i){
     labSel=i;var r=LAB[i];labLastKey=nk(r.a);
@@ -3324,8 +3370,8 @@ PLATFORM="zanganam88@gmail.com";
   function lbDraw(){
     if(!$("lbq"))return;
     var mgr=labMgr(),own=ROLE==="owner";
-    $("lbm").hidden=!own;$("lbPal").hidden=own||!window.INBOUND;$("lbo").hidden=own||!window.INBOUND;
-    $("lbmg").hidden=!mgr;$("lbim").hidden=!mgr;
+    $("lbm").hidden=!hubUser;$("lbPal").hidden=!(lightUser&&canP("pal")&&!hubUser);$("lbo").hidden=hubUser||ROLE==="owner";
+    $("lbmg").hidden=!mgr;$("lbim").hidden=!mgr;lbStaffDraw();
     if($("hls"))$("hls").textContent=LAB.length?LAB.length+" product"+(LAB.length===1?"":"s"):"No products yet. Tap to add them.";
     var q=labQ.trim(),k=nk(q),sug=$("lbSug");
     var ex=k?lbFind(k):-1;
@@ -3356,7 +3402,7 @@ PLATFORM="zanganam88@gmail.com";
   $("lbq").oninput=function(){labQ=this.value;lbDraw()};
   $("lbN").oninput=lbPreview;$("lbE").oninput=lbPreview;$("lbE").onchange=lbPreview;$("lbC").oninput=lbPreview;
   $("lbP").onclick=lbPrint;
-  $("lbX").onclick=function(){labQ="";labSel=-1;labLastKey="";$("lbq").value="";$("lbN").value="";$("lbE").value="";$("lbC").value="1";$("lbHint").textContent="";lbDraw();try{$("lbq").focus()}catch(e){}};
+  $("lbX").onclick=function(){labQ="";labSel=-1;labLastKey="";$("lbq").value="";$("lbN").value="";$("lbE").value="";$("lbC").value="1";$("lbHint").textContent="";$("lbPw").value="";labOK=false;lbAuthUI();lbDraw();try{$("lbq").focus()}catch(e){}};
   var lbRz=0;window.addEventListener("resize",function(){clearTimeout(lbRz);lbRz=setTimeout(function(){if(!lb.hidden&&labSel>=0)lbPreview()},250)});
   // ----- add / edit (manager) -----
   function lbForm(i){
@@ -3438,6 +3484,70 @@ PLATFORM="zanganam88@gmail.com";
     if(!confirm("Delete ALL "+LAB.length+" products from the label list? This cannot be undone.")||prompt('Type DELETE to confirm')!=="DELETE")return;
     labSave([]).then(function(){try{lg("Label list cleared","")}catch(x){}labSel=-1;lbMsg("The list was cleared.")}).catch(dbe);
   };
+  // ----- label staff: names + personal passwords (set by the manager); needed before every print -----
+  var LST=[],labOK=false,labVer=0;
+  function lbRand(){var a="",i;for(i=0;i<16;i++)a+=Math.floor(Math.random()*16).toString(16);return a}
+  function lbHash(salt,pw){
+    var str=salt+"|"+pw;
+    try{
+      if(window.crypto&&crypto.subtle&&window.TextEncoder)return crypto.subtle.digest("SHA-256",new TextEncoder().encode(str)).then(function(b){return Array.prototype.map.call(new Uint8Array(b),function(x){return ("0"+x.toString(16)).slice(-2)}).join("")});
+    }catch(e){}
+    var h=5381,i;for(i=0;i<str.length;i++)h=((h<<5)+h+str.charCodeAt(i))|0;
+    return Promise.resolve("f"+(h>>>0).toString(16));
+  }
+  function lbLastWho(){try{return localStorage.getItem("labWho")||""}catch(e){return ""}}
+  function lbName(){return LST.length?($("lbSt").value||""):lbWho()}
+  function lbAuthUI(){var e=$("lbAuth");if(e)e.innerHTML=labOK?'<span style="color:var(--ok);font-weight:700">&#10003; Password correct</span>':""}
+  function lbVerify(){
+    var v=++labVer,nm=$("lbSt").value,pw=$("lbPw").value;labOK=false;
+    var r=LST.filter(function(x){return x.n===nm})[0];
+    if(!r||!pw){lbAuthUI();return Promise.resolve(false)}
+    return lbHash(r.s,pw).then(function(h){if(v!==labVer)return false;labOK=(h===r.h);lbAuthUI();return labOK});
+  }
+  function lbStaffDraw(){
+    var has=LST.length>0,mgr=labMgr();
+    $("lbWho").hidden=!has;$("lbst").hidden=!mgr;
+    var sel=$("lbSt"),sig=LST.map(function(x){return x.n}).join("\n");
+    if(sel.dataset.sig!==sig){
+      var cur=sel.value||lbLastWho();
+      sel.innerHTML='<option value="">Choose your name</option>'+LST.map(function(x){return '<option value="'+esc(x.n)+'">'+esc(x.n)+'</option>'}).join("");
+      sel.dataset.sig=sig;sel.value=LST.some(function(x){return x.n===cur})?cur:"";
+    }
+    if(mgr)$("lbstl").innerHTML=LST.length?LST.map(function(x,i){return '<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><b>'+esc(x.n)+'</b><button type="button" class="ghost" data-lse="'+i+'">Edit</button></div>'}).join(""):'<div class="meta">No staff yet. While the list is empty, anyone can print and the label shows the login name. Add staff to require a name and password before every print.</div>';
+    if(mgr)Array.prototype.forEach.call($("lbstl").querySelectorAll("[data-lse]"),function(b){b.onclick=function(){lbStaffForm(+b.dataset.lse)}});
+  }
+  function lbStaffSave(rows){return DB.doc("app/labstaff").set({rows:rows}).then(function(){LST=rows;lbStaffDraw();lbPreview()})}
+  function lbStaffForm(i){
+    var r=i>=0?LST[i]:{n:""};
+    sheet('<h2 style="margin:0 0 10px">'+(i>=0?"Edit staff":"Add staff")+'</h2><div id="lsMsg"></div>'
+      +'<label class="wide">Name (shown on the label)<input id="lsN" value="'+esc(r.n)+'" autocomplete="off" maxlength="30"></label>'
+      +'<label class="wide">'+(i>=0?"New password (leave empty to keep the old one)":"Password")+'<input id="lsP" type="text" autocomplete="off" autocapitalize="off" placeholder="at least 4 characters"></label>'
+      +'<div class="row" style="margin-top:14px"><button id="lsS" type="button">Save</button><button id="lsX" type="button" class="ghost">Cancel</button>'+(i>=0?'<button id="lsD" type="button" class="ghost">Remove</button>':"")+'</div>');
+    $("lsX").onclick=closeSheet;
+    var err=function(t){$("lsMsg").innerHTML='<div style="color:'+RED+';font-weight:700;margin-bottom:8px">'+t+'</div>'};
+    $("lsS").onclick=function(){
+      var n=$("lsN").value.trim().replace(/\s+/g," "),pw=$("lsP").value;
+      if(!n)return err("Type the name.");
+      if(LST.some(function(x,k){return k!==i&&x.n.toLowerCase()===n.toLowerCase()}))return err("This name is already in the list.");
+      if(i<0&&pw.length<4)return err("The password needs at least 4 characters.");
+      if(pw&&pw.length<4)return err("The password needs at least 4 characters.");
+      $("lsS").disabled=true;
+      var salt=pw?lbRand():r.s,hp=pw?lbHash(salt,pw):Promise.resolve(r.h);
+      hp.then(function(h){
+        var rows=LST.slice(),o={n:n,s:salt,h:h};if(i>=0)rows[i]=o;else rows.push(o);
+        rows.sort(function(a,b){return a.n.localeCompare(b.n)});
+        return lbStaffSave(rows);
+      }).then(function(){try{lg(i>=0?"Label staff changed":"Label staff added",n)}catch(x){}closeSheet()}).catch(function(e){$("lsS").disabled=false;dbe(e)});
+    };
+    if(i>=0)$("lsD").onclick=function(){
+      if(!confirm("Remove "+r.n+" from the label staff?"))return;
+      var rows=LST.slice();rows.splice(i,1);
+      lbStaffSave(rows).then(function(){try{lg("Label staff removed",r.n)}catch(x){}closeSheet()}).catch(dbe);
+    };
+  }
+  $("lbsa").onclick=function(){lbStaffForm(-1)};
+  $("lbSt").onchange=function(){try{localStorage.setItem("labWho",this.value)}catch(e){}$("lbPw").value="";labOK=false;lbAuthUI();lbPreview()};
+  $("lbPw").oninput=lbVerify;
   // ----- navigation -----
   $("hlab").onclick=function(){page="lab";sync();lbDraw()};
   $("lbm").onclick=function(){page="menu";sync()};
