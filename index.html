@@ -320,7 +320,7 @@ rr();render();stats();setInterval(render,1000);
         if(cd.active===false){noAccess(u,"This company account is suspended. Please contact support.");return}
         CID=m.cid;ROLE=m.role||"staff";COMP=cd;CFG=Object.assign({},CFG,cd.settings||{});
         window.SCANNER=!!m.scanner;window.SCANNER_PICKER=m.scanner?(m.picker||""):"";var pgs=(m.role==="owner"||m.scanner||m.role==="display")?null:(Array.isArray(m.pages)?m.pages.slice():(m.inbound?["pal","lab"]:["pick"]));
-        window.PAGES=pgs;window.INBOUND=!!pgs&&pgs.indexOf("pick")<0;window.MEMNAME=m.name||"";
+        window.EDIT=m.role==="owner"||m.edit===true;window.PAGES=pgs;window.INBOUND=!!pgs&&pgs.indexOf("pick")<0;window.MEMNAME=m.name||"";
         if(m.scanner&&new URLSearchParams(location.search).get("me")!=="1"){var q2=new URLSearchParams(location.search);q2.set("me","1");q2.delete("display");location.replace(location.pathname+"?"+q2.toString().replace(/%40/g,"@"));return}
         applyBrand();window.dispatchEvent(new Event("rolechange"));go();view("app");
       });
@@ -569,19 +569,19 @@ rr();render();stats();setInterval(render,1000);
   $("so").parentNode.insertAdjacentElement("afterend",w);
   var md=document.createElement("div");md.hidden=true;
   md.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))";
-  md.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">Staff access</h1><button id="sx" type="button" class="ghost">Close</button></div><div class="meta" style="margin-bottom:8px">Type the full name and email of the person, then tap Give access. They open the app, tap "First time? Create my password", choose a password and verify their email. Remove someone to lock them out immediately.</div><input id="sn" placeholder="Full name (first and last name)" autocomplete="off" style="margin-bottom:8px"><input id="sm" type="email" placeholder="email@example.com" autocomplete="off"><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sd" type="checkbox" style="width:auto"> Display tablet only (read-only, for the pickers)</label><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sp" type="checkbox" style="width:auto"> Picker scanner login (shows only the picker screen)</label><select id="spn" hidden style="margin-bottom:8px"></select><div id="spgs" style="margin:10px 0"><div style="font-weight:700;margin-bottom:4px">Pages this person can open (tick):</div><label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input id="pk_pick" type="checkbox" style="width:auto" checked> Pickers management</label><label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input id="pk_exp" type="checkbox" style="width:auto"> Expirations management</label><label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input id="pk_map" type="checkbox" style="width:auto"> Warehouse Map</label><label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input id="pk_pal" type="checkbox" style="width:auto"> Palletization guide</label><label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input id="pk_lab" type="checkbox" style="width:auto"> Pallet labels</label></div><div class="row"><button id="sa" type="button">Give access</button></div><div id="sl"></div></div>';
+  md.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0">Staff access</h1><button id="sx" type="button" class="ghost">Close</button></div><div class="meta" style="margin-bottom:8px">Type the full name and email of the person, then tap Give access. They open the app, tap "First time? Create my password", choose a password and verify their email. Remove someone to lock them out immediately.</div><input id="sn" placeholder="Full name (first and last name)" autocomplete="off" style="margin-bottom:8px"><input id="sm" type="email" placeholder="email@example.com" autocomplete="off"><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sd" type="checkbox" style="width:auto"> Display tablet only (read-only, for the pickers)</label><label style="flex-direction:row;align-items:center;gap:8px;margin:8px 0"><input id="sp" type="checkbox" style="width:auto"> Picker scanner login (shows only the picker screen)</label><select id="spn" hidden style="margin-bottom:8px"></select><div id="spgs" style="margin:10px 0"><div style="font-weight:700;margin-bottom:4px">Pages this person can open (tick):</div><label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input id="pk_pick" type="checkbox" style="width:auto" checked> Pickers management</label><label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input id="pk_exp" type="checkbox" style="width:auto"> Expirations management</label><label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input id="pk_map" type="checkbox" style="width:auto"> Warehouse Map</label><label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input id="pk_pal" type="checkbox" style="width:auto"> Palletization guide</label><label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input id="pk_lab" type="checkbox" style="width:auto"> Pallet labels</label><div style="font-weight:700;margin:10px 0 4px">Access level:</div><select id="sacc" style="width:100%;margin-bottom:6px"><option value="r">Read only: can enter information and print, cannot edit or delete</option><option value="w">Read &amp; write: can also add, edit, delete and import</option></select></div><div class="row"><button id="sa" type="button">Give access</button></div><div id="sl"></div></div>';
   document.body.appendChild(md);
   var PGK=[["pick","Pickers management","Pickers"],["exp","Expirations management","Expirations"],["map","Warehouse Map","Map"],["pal","Palletization guide","Palletization"],["lab","Pallet labels","Labels"]];
   function effPages(x){return Array.isArray(x&&x.pages)?x.pages:(x&&x.inbound?["pal","lab"]:["pick"])}
-  function lab(r,x){return r==="owner"?"Manager":x&&x.scanner?"Picker scanner"+(x.picker?" · "+x.picker:" · picker chooses"):r==="display"?"Display tablet":"Pages: "+PGK.filter(function(k){return effPages(x).indexOf(k[0])>=0}).map(function(k){return k[2]}).join(", ")}
+  function lab(r,x){return r==="owner"?"Manager":x&&x.scanner?"Picker scanner"+(x.picker?" · "+x.picker:" · picker chooses"):r==="display"?"Display tablet":"Pages: "+PGK.filter(function(k){return effPages(x).indexOf(k[0])>=0}).map(function(k){return k[2]}).join(", ")+" · "+(x&&x.edit?"Read & write":"Read only")}
   function fillSp(){var sel=$("spn"),cur=sel.value,h='<option value="">Any picker (the picker chooses on the scanner)</option>';(S.roster||[]).forEach(function(n){h+='<option value="'+esc(n)+'">Only '+esc(n)+'</option>'});sel.innerHTML=h;sel.value=cur}
   function showPages(){$("spgs").hidden=$("sd").checked||$("sp").checked}
   setTimeout(function(){$("sp").onchange=function(){$("spn").hidden=!this.checked;if(this.checked){fillSp();$("sd").checked=false}showPages()};$("sd").onchange=function(){if(this.checked){$("sp").checked=false;$("spn").hidden=true}showPages()}},0);
   function draw(){
     $("sl").innerHTML=list.length?list.map(function(x){
       var em=esc(x.email),cp=x.role==="staff"&&!x.scanner,ep=effPages(x);
-      return '<div class="h"><span><b>'+esc(x.name||"(no name yet)")+'</b><br><span class="meta">'+em+' · '+lab(x.role,x)+'</span></span><span style="display:flex;gap:6px">'+(cp?'<button class="ghost" data-pp="'+em+'" type="button">Pages</button>':'')+(x.role==="owner"?'':'<button class="ghost" data-e="'+em+'" type="button">Remove</button>')+'</span></div>'
-        +(cp?'<div data-pn="'+em+'" hidden style="padding:4px 10px 12px">'+PGK.map(function(k){return '<label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" data-k="'+k[0]+'" style="width:auto"'+(ep.indexOf(k[0])>=0?' checked':'')+'> '+k[1]+'</label>'}).join("")+'<button type="button" data-ps="'+em+'">Save pages</button></div>':'');
+      return '<div class="h"><span><b>'+esc(x.name||"(no name yet)")+'</b><br><span class="meta">'+em+' · '+lab(x.role,x)+'</span></span><span style="display:flex;gap:6px">'+(cp?'<button class="ghost" data-pp="'+em+'" type="button">Access</button>':'')+(x.role==="owner"?'':'<button class="ghost" data-e="'+em+'" type="button">Remove</button>')+'</span></div>'
+        +(cp?'<div data-pn="'+em+'" hidden style="padding:4px 10px 12px">'+PGK.map(function(k){return '<label style="flex-direction:row;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" data-k="'+k[0]+'" style="width:auto"'+(ep.indexOf(k[0])>=0?' checked':'')+'> '+k[1]+'</label>'}).join("")+'<div style="font-weight:700;margin:10px 0 4px">Access level:</div><select data-acc="'+em+'" style="width:100%;margin-bottom:8px"><option value="r"'+(x.edit?"":" selected")+'>Read only: enter information and print</option><option value="w"'+(x.edit?" selected":"")+'>Read &amp; write: also add, edit, delete, import</option></select><button type="button" data-ps="'+em+'">Save access</button></div>':'');
     }).join(""):'<div class="empty">No one added yet.</div>';
   }
 
@@ -593,10 +593,10 @@ rr();render();stats();setInterval(render,1000);
     var role=$("sd").checked?"display":"staff",b=RAW.batch(),sc=$("sp").checked,pk=sc?$("spn").value:"",pages=[];
     PGK.forEach(function(k){if($("pk_"+k[0]).checked)pages.push(k[0])});
     if(role==="staff"&&!sc&&!pages.length){alert("Tick at least one page.");return}
-    var ex=sc?{scanner:true,picker:pk}:role==="staff"?{pages:pages}:{};
+    var ex=sc?{scanner:true,picker:pk}:role==="staff"?{pages:pages,edit:$("sacc").value==="w"}:{};
     b.set(RAW.doc("members/"+em),Object.assign({email:em,cid:CID,role:role,name:nm,by:u.email,at:Date.now()},ex));
     b.set(DB.doc("people/"+em),Object.assign({email:em,name:nm,role:role},ex));
-    b.commit().then(function(){lg("Gave access / set name",nm+" · "+em+(role==="display"?" (display only)":"")+(sc?" (picker scanner"+(pk?" for "+pk:"")+")":"")+(role==="staff"&&!sc?" (pages: "+pages.join(", ")+")":""));$("sm").value="";$("sn").value="";$("sd").checked=false;$("sp").checked=false;PGK.forEach(function(k){$("pk_"+k[0]).checked=k[0]==="pick"});$("spn").hidden=true;showPages()}).catch(function(e){
+    b.commit().then(function(){lg("Gave access / set name",nm+" · "+em+(role==="display"?" (display only)":"")+(sc?" (picker scanner"+(pk?" for "+pk:"")+")":"")+(role==="staff"&&!sc?" (pages: "+pages.join(", ")+")":""));$("sm").value="";$("sn").value="";$("sd").checked=false;$("sp").checked=false;PGK.forEach(function(k){$("pk_"+k[0]).checked=k[0]==="pick"});$("sacc").value="r";$("spn").hidden=true;showPages()}).catch(function(e){
       if(e&&e.code==="permission-denied")alert("This email cannot be added. It may already belong to another company, or it is a manager account.");else dbe(e);
     });
   };
@@ -607,8 +607,8 @@ rr();render();stats();setInterval(render,1000);
       var em2=b.dataset.ps,pn=$("sl").querySelector('[data-pn="'+em2+'"]'),pages=[];
       Array.prototype.forEach.call(pn.querySelectorAll("input[data-k]"),function(c){if(c.checked)pages.push(c.dataset.k)});
       if(!pages.length){alert("Tick at least one page.");return}
-      var bb=RAW.batch();bb.update(RAW.doc("members/"+em2),{pages:pages});bb.set(DB.doc("people/"+em2),{pages:pages},{merge:true});
-      bb.commit().then(function(){lg("Changed pages",em2+" · "+pages.join(", "));alert("Saved. The new pages show when they open the app again.")}).catch(dbe);return;
+      var bb=RAW.batch();var wr=pn.querySelector("select[data-acc]").value==="w";bb.update(RAW.doc("members/"+em2),{pages:pages,edit:wr});bb.set(DB.doc("people/"+em2),{pages:pages,edit:wr},{merge:true});
+      bb.commit().then(function(){lg("Changed access",em2+" · "+pages.join(", ")+" · "+(wr?"read & write":"read only"));alert("Saved. The new pages show when they open the app again.")}).catch(dbe);return;
     }
     var em=b.dataset.e;if(!em)return;
     if(!confirm("Remove access for "+em+"? They will be locked out immediately."))return;
@@ -2899,7 +2899,7 @@ PLATFORM="zanganam88@gmail.com";
     +'</div>';
   document.body.appendChild(pg);
   function pgMsg(t,bad){var e=$("pgMsg");e.innerHTML=t?'<div style="padding:10px 12px;border-radius:10px;font-weight:600;margin-bottom:10px;background:'+(bad?"var(--badbg)":"var(--okbg)")+';color:'+(bad?RED:"var(--ok)")+'">'+esc(t)+'</div>':""}
-  function palMgr(){return ROLE==="owner"}
+  function palMgr(){return ROLE==="owner"||!!window.EDIT}
   function palSub(){
     if(palOn||!DB)return;palOn=true;
     DB.doc("app/palmeta").onSnapshot(function(d){
@@ -3221,7 +3221,7 @@ PLATFORM="zanganam88@gmail.com";
     var pc=document.createElement("style");pc.id="lbPageCss";document.head.appendChild(pc);
   })();
   function lbMsg(t,bad){var e=$("lbMsg");e.innerHTML=t?'<div style="padding:10px 12px;border-radius:10px;font-weight:600;margin-bottom:10px;background:'+(bad?"var(--badbg)":"var(--okbg)")+';color:'+(bad?RED:"var(--ok)")+'">'+esc(t)+'</div>':""}
-  function labMgr(){return ROLE==="owner"}
+  function labMgr(){return ROLE==="owner"||!!window.EDIT}
   function labSub(){
     if(labOn||!DB)return;labOn=true;
     DB.doc("app/labstaff").onSnapshot(function(d){LST=d.exists?(d.data().rows||[]):[];lbStaffDraw();if(!lb.hidden)lbPreview();if(labOK)lbVerify()},function(){});
@@ -3523,7 +3523,7 @@ PLATFORM="zanganam88@gmail.com";
     return lbHash(r.s,pw).then(function(h){if(v!==labVer)return false;labOK=(h===r.h);if(labOK&&!lockAt)lbTouch();else{if(!labOK)lockAt=0;lbAuthUI()}return labOK});
   }
   function lbStaffDraw(){
-    var has=LST.length>0,mgr=labMgr();
+    var has=LST.length>0,mgr=ROLE==="owner";
     $("lbWho").hidden=!has;$("lbst").hidden=!mgr;
     var sel=$("lbSt"),sig=LST.map(function(x){return x.n}).join("\n");
     if(sel.dataset.sig!==sig){
