@@ -533,7 +533,7 @@ rr();render();stats();setInterval(render,1000);
   var b=document.createElement("button");b.type="button";b.className="ghost";b.textContent="Refresh";
   b.style.cssText="position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:12px;z-index:40;padding:8px 14px;background:var(--bg)";
   b.onclick=function(){location.href=location.pathname+(location.search.indexOf("display=1")>=0?"?display=1&v=":"?v=")+Date.now()};
-  document.body.appendChild(b);
+  if(location.search.indexOf("display=1")>=0)document.body.appendChild(b);   // only the pickers' tablet screen keeps it
 })();
 // Picker statistics in its own window
 (function(){
