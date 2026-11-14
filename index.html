@@ -3688,13 +3688,18 @@ PLATFORM="zanganam88@gmail.com";
   var rb=rg.querySelector("button[type=submit]");if(rb)rb.textContent="Activate my account";
   $("rbk").textContent="Back to sign in";
   var gr=$("gr");if(gr)gr.textContent="Resend verification email";
+  var sb=lg.querySelector("button[type=submit]");
+  var sk=document.createElement("label");sk.style.cssText="flex-direction:row;align-items:center;gap:8px;font-size:14px;color:var(--mute)";
+  sk.innerHTML='<input id="lstay" type="checkbox" checked style="width:auto"> Stay signed in on this device';
+  lg.insertBefore(sk,sb);
   // remember the last email
   try{var le=localStorage.getItem("alphaLastEmail");if(le&&!$("le").value)$("le").value=le}catch(e){}
   // friendly sign-in with a waiting state
   lg.onsubmit=function(e){
     e.preventDefault();var em=$("le").value.trim(),btn=lg.querySelector("button[type=submit]");
     btn.disabled=true;btn.textContent="Signing in...";wn.hidden=true;
-    firebase.auth().signInWithEmailAndPassword(em,$("lp").value).then(function(){
+    var P=null;try{P=firebase.auth().setPersistence(firebase.auth.Auth.Persistence[$("lstay").checked?"LOCAL":"SESSION"])}catch(x){}
+    Promise.resolve(P).catch(function(){}).then(function(){return firebase.auth().signInWithEmailAndPassword(em,$("lp").value)}).then(function(){
       try{localStorage.setItem("alphaLastEmail",em)}catch(x){}
       $("lp").value="";
     }).catch(function(x){
@@ -3716,6 +3721,26 @@ PLATFORM="zanganam88@gmail.com";
   var mo=new MutationObserver(paint);
   [lg,rg,gt,$("ap")].forEach(function(e){mo.observe(e,{attributes:true,attributeFilter:["hidden","style"]})});
   paint();
+
+  // ---- automatic sign-out after a long time without activity ----
+  var IDLE=window.__IDLE||8*3600*1000,WARN=Math.min(2*60*1000,IDLE/4),KEY="alphaLastAct",lastW=0;
+  function mark(){var n=Date.now();if(n-lastW<5000)return;lastW=n;try{localStorage.setItem(KEY,String(n))}catch(e){}}
+  ["mousemove","keydown","click","touchstart","scroll"].forEach(function(ev){window.addEventListener(ev,function(){if(!bn.hidden)return;mark()},true)});
+  var bn=document.createElement("div");bn.hidden=true;
+  bn.style.cssText="position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:2000;background:#0f1d33;color:#fff;padding:14px 18px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);display:flex;align-items:center;gap:14px;max-width:92vw;font-size:15px";
+  bn.innerHTML='<span id="idm"></span><button type="button" id="idk" style="width:auto;min-height:0;padding:8px 14px;background:#2f6df6;color:#fff;border:0;border-radius:10px;font-weight:700">Stay signed in</button>';
+  document.body.appendChild(bn);
+  $("idk").onclick=function(){bn.hidden=true;lastW=0;mark()};
+  var lastAct=function(){var v=0;try{v=+localStorage.getItem(KEY)||0}catch(e){}return v||Date.now()};
+  mark();
+  setInterval(function(){
+    var on=!$("ap").hidden&&!!ROLE&&ROLE!=="display"&&!window.SCANNER;
+    if(!on){bn.hidden=true;return}
+    var idle=Date.now()-lastAct();
+    if(idle>=IDLE){firebase.auth().signOut().then(function(){location.reload()});return}
+    if(idle>=IDLE-WARN){var sec=Math.max(0,Math.ceil((IDLE-idle)/1000));$("idm").textContent="You will be signed out in "+Math.floor(sec/60)+":"+(sec%60<10?"0":"")+(sec%60)+" because of inactivity.";bn.hidden=false}
+    else bn.hidden=true;
+  },window.__IDLE?500:5000);
 })();
 
 // Picker scanner screen (?me=1) and supervisor notifications (finished / more time)
