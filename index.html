@@ -1651,7 +1651,7 @@ PLATFORM="zanganam88@gmail.com";
   // ---------- menu button on the pickers page ----------
   var ab=document.createElement("button");ab.type="button";ab.className="ghost";ab.textContent="Alerts";ab.hidden=true;ab.style.cssText="margin-left:10px";
   var ai=document.createElement("button");ai.type="button";ai.className="ghost";ai.textContent="Test";ai.hidden=true;ai.style.cssText="margin-left:8px";ai.onclick=function(){pushSheet()};
-  var mb=document.createElement("button");mb.type="button";mb.className="ghost";mb.textContent="Menu";mb.hidden=true;mb.style.cssText="margin-left:14px";
+  var mb=document.createElement("button");mb.id="mb";mb.type="button";mb.className="ghost";mb.textContent="Menu";mb.hidden=true;mb.style.cssText="margin-left:14px";
   var bar=$("brand");if(bar){bar.appendChild(mb);bar.appendChild(ab)}else{ap.insertBefore(ab,ap.firstChild);ap.insertBefore(mb,ap.firstChild)}
   ab.onclick=function(){
     if(!pushSupported()){pushSheet();return}
@@ -1686,6 +1686,7 @@ PLATFORM="zanganam88@gmail.com";
     if(light&&page==="menu")page=PG.indexOf("pal")>=0?"pal":"lab";
     if(light&&page==="pal"&&!can("pal"))page="lab";
     if(light&&page==="lab"&&!can("lab"))page="pal";
+    if(window.innerWidth>=1000&&hubU&&page==="menu"&&!ap.hidden){var dk0=["pick","exp","map","pal","lab"].filter(can)[0];if(dk0)page=dk0}
     pg.hidden=!(can("pal")&&page==="pal");
     if(typeof lb!=="undefined"&&lb)lb.hidden=!(can("lab")&&page==="lab");
     if(can("pal"))palSub();
@@ -1699,6 +1700,7 @@ PLATFORM="zanganam88@gmail.com";
     $("hpush").hidden=!(cu&&(cu.email||"").toLowerCase()===PLATFORM.toLowerCase());
     if(hubU)$("hco").textContent=COMP&&COMP.name||"";
     if(can("exp")||can("map")){subscribe();drawHub()}
+    dkSync();
   }
   new MutationObserver(sync).observe(ap,{attributes:true,attributeFilter:["hidden"]});
   window.addEventListener("rolechange",sync);
@@ -1710,6 +1712,54 @@ PLATFORM="zanganam88@gmail.com";
   mb.onclick=function(){page="menu";sync()};
   $("exm").onclick=function(){page="menu";sync()};
   $("hso").onclick=function(){$("so").click()};
+  // ---------- laptop / desktop layout: menu in a left bar ----------
+  var DKW=1000,dsb=document.createElement("div");dsb.id="dsb";
+  var DKI=[["pick","hp","Pickers management",'<path d="M16 11a4 4 0 1 0-8 0M4 20c0-3.5 3.5-6 8-6s8 2.5 8 6"/>'],
+           ["exp","he","Expirations management",'<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>'],
+           ["map","hm","Warehouse Map",'<path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14"/>'],
+           ["pal","hg","Palletization guide",'<path d="M3 17h18M5 17v3M19 17v3M6 17V9h12v8M6 13h12"/>'],
+           ["lab","hlab","Pallet labels",'<path d="M4 5h16v14H4zM8 9h8M8 13h5"/>']];
+  var dst=document.createElement("style");
+  dst.textContent='#dsb{display:none}'
+   +'@media (min-width:'+DKW+'px){'
+   +'body.dkon{padding-left:240px}'
+   +'body.dkon #dsb{display:flex}'
+   +'#dsb{position:fixed;left:0;top:0;bottom:0;width:240px;z-index:48;flex-direction:column;background:linear-gradient(180deg,#0f1d33,#13294a);color:#e8eef9;padding:22px 14px 16px;overflow:auto;box-shadow:2px 0 14px rgba(8,16,32,.25)}'
+   +'#dsb .dkb{display:flex;align-items:center;gap:12px;padding:2px 6px 18px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:14px}'
+   +'#dsb .dkt{font-weight:900;letter-spacing:.08em;font-size:17px;line-height:1.1;color:#fff}#dsb .dkt span{color:#5bb4ff}'
+   +'#dsb .dkc{font-size:12px;color:#9fb2d1;margin-top:3px;word-break:break-word}'
+   +'#dsb .dkn{display:flex;flex-direction:column;gap:4px;flex:1}'
+   +'#dsb .dkh{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7f93b5;margin:10px 8px 4px}'
+   +'#dsb button.dki{display:flex;align-items:center;gap:12px;width:100%;margin:0;padding:11px 12px;border:0;border-radius:10px;background:transparent;color:#cdd8ec;font:600 15px/1.2 inherit;text-align:left;cursor:pointer;min-height:0;box-shadow:none}'
+   +'#dsb button.dki:hover{background:rgba(255,255,255,.09);color:#fff}'
+   +'#dsb button.dki.on{background:#2f6df6;color:#fff;box-shadow:0 4px 14px rgba(47,109,246,.35)}'
+   +'#dsb svg{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}'
+   +'#dsb .dkf{border-top:1px solid rgba(255,255,255,.12);padding-top:12px;margin-top:12px}'
+   +'#dsb .dku{font-size:13px;color:#cdd8ec;padding:0 8px 8px;word-break:break-all}'
+   +'body.dkon .dkp{left:240px!important}'
+   +'body.dkon .dkp>div{max-width:1120px!important}'
+   +'body.dkon #mb,body.dkon #exm,body.dkon #wmm,body.dkon #pgm,body.dkon #lbm{display:none!important}'
+   +'body.dkon .card,body.dkon .h{box-shadow:0 1px 3px rgba(15,29,51,.08)}'
+   +'}';
+  document.head.appendChild(dst);document.body.appendChild(dsb);
+  function dkFirst(can){for(var i=0;i<DKI.length;i++)if(can(DKI[i][0]))return DKI[i][0];return "menu"}
+  function dkSync(){
+    var on=window.innerWidth>=DKW&&!ap.hidden&&hubUser&&!!ROLE&&ROLE!=="display"&&!window.SCANNER;
+    document.body.classList.toggle("dkon",on);
+    [hub,ex,typeof wm!=="undefined"?wm:null,pg,typeof lb!=="undefined"?lb:null].forEach(function(e){if(e)e.classList.add("dkp")});
+    var sx=$("sx"),a=sx&&sx.parentNode;while(a&&a!==document.body){if(a.style&&a.style.position==="fixed"){a.classList.add("dkp");break}a=a.parentNode}
+    if(!on)return;
+    var cu=firebase.auth().currentUser,em=cu?cu.email:"",own=ROLE==="owner";
+    var h='<div class="dkb">'+badge(40)+'<div><div class="dkt">ALPHA Z <span>WMS</span></div><div class="dkc">'+esc(COMP&&COMP.name||"")+'</div></div></div><div class="dkn"><div class="dkh">Pages</div>';
+    DKI.forEach(function(x){if(canP(x[0]))h+='<button type="button" class="dki'+(page===x[0]?" on":"")+'" data-dk="'+x[1]+'"><svg viewBox="0 0 24 24">'+x[3]+'</svg>'+x[2]+'</button>'});
+    if(own)h+='<div class="dkh">Manage</div><button type="button" class="dki" data-dk="hacc"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>Staff access</button>';
+    if(!$("hall").hidden)h+='<button type="button" class="dki" data-dk="hall"><svg viewBox="0 0 24 24"><path d="M4 20V8l8-4 8 4v12M9 20v-6h6v6"/></svg>All companies</button>';
+    h+='</div><div class="dkf"><div class="dku">'+esc((window.MEMNAME?window.MEMNAME+" · ":"")+em)+'</div><button type="button" class="dki" data-dk="so"><svg viewBox="0 0 24 24"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg>Sign out</button></div>';
+    if(dsb.dataset.sig!==h){dsb.dataset.sig=h;dsb.innerHTML=h}
+  }
+  dsb.addEventListener("click",function(e){var b=e.target.closest("button[data-dk]");if(!b)return;var t=b.dataset.dk==="so"?$("so"):$(b.dataset.dk);if(t)t.click()});
+  window.addEventListener("resize",function(){sync()});
+
   $("hallb").onclick=function(){RAW.doc("members/"+PLATFORM).delete().then(function(){location.reload()}).catch(dbe)};
 
   // ---------- dates ----------
