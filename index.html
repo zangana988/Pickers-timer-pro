@@ -20,6 +20,7 @@ window.addEventListener("load",function(){
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141816;--card:#1e2421;--ink:#eef2ef;--mute:#9aa6a0;--line:#2f3833;--ok:#43c46e;--okbg:#17301f;--bad:#ff6b5e;--badbg:#3a1a17;--btn:#eef2ef;--btnink:#141816}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
+.hideap #ap{visibility:hidden}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
 main{max-width:1100px;margin:0 auto;padding:16px}
 #active{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
@@ -276,7 +277,7 @@ rr();render();stats();setInterval(render,1000);
   DB={doc:function(p){return RAW.doc(pre(p))},collection:function(p){return RAW.collection(pre(p))},batch:function(){return RAW.batch()},enablePersistence:function(){return Promise.resolve()}};
   var started=false;
   function view(v){$("lg").hidden=v!=="login";$("lk").hidden=v!=="login";$("rg").hidden=v!=="reg";$("gt").hidden=v!=="gate";$("ap").hidden=v!=="app"}
-  function out(){firebase.auth().signOut().then(function(){location.reload()})}
+  function out(){firebase.auth().signOut().then(function(){location.replace(location.pathname)})}
   $("lg").onsubmit=function(e){e.preventDefault();firebase.auth().signInWithEmailAndPassword($("le").value.trim(),$("lp").value).then(function(){warn("")}).catch(function(){warn("Sign-in failed. Check the email and password.")})};
   $("so").onclick=out;$("gs").onclick=out;
   $("lreg").onclick=function(){warn("");view("reg")};
@@ -322,7 +323,9 @@ rr();render();stats();setInterval(render,1000);
         window.SCANNER=!!m.scanner;window.SCANNER_PICKER=m.scanner?(m.picker||""):"";var pgs=(m.role==="owner"||m.scanner||m.role==="display")?null:(Array.isArray(m.pages)?m.pages.slice():(m.inbound?["pal","lab"]:["pick"]));
         window.EDIT=m.role==="owner"||m.edit===true;window.PAGES=pgs;window.INBOUND=!!pgs&&pgs.indexOf("pick")<0;window.MEMNAME=m.name||"";
         if(m.scanner&&new URLSearchParams(location.search).get("me")!=="1"){var q2=new URLSearchParams(location.search);q2.set("me","1");q2.delete("display");location.replace(location.pathname+"?"+q2.toString().replace(/%40/g,"@"));return}
+        if(m.role!=="display"&&!m.scanner&&pgs&&pgs.indexOf("pick")<0&&/[?&](display|me)=1/.test(location.search)){var q4=new URLSearchParams(location.search);q4.delete("display");q4.delete("me");var qs=q4.toString().replace(/%40/g,"@");location.replace(location.pathname+(qs?"?"+qs:""));return}
         if(m.role==="display"&&new URLSearchParams(location.search).get("display")!=="1"){var q3=new URLSearchParams(location.search);q3.set("display","1");location.replace(location.pathname+"?"+q3.toString().replace(/%40/g,"@"));return}
+        if(m.scanner||m.role==="display")document.documentElement.classList.add("hideap");
         applyBrand();window.dispatchEvent(new Event("rolechange"));go();view("app");
       });
     }).catch(function(){noAccess(u,na)});
@@ -650,7 +653,7 @@ rr();render();stats();setInterval(render,1000);
   ov.style.cssText="position:fixed;top:0;right:0;bottom:0;left:0;z-index:60;background:var(--bg);color:var(--ink);overflow:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(14px + env(safe-area-inset-bottom,0px))";
   ov.innerHTML='<div class="row" style="margin:0 0 12px"><h1 style="margin:0;font-size:30px">In progress</h1><div id="dclk" style="font-size:30px;font-weight:700"></div></div><div id="dgrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px"></div><div class="row"><button id="dso" type="button" class="ghost" style="padding:6px 12px;font-size:13px;opacity:.6">Sign out</button></div>';
   document.body.appendChild(ov);
-  $("dso").onclick=function(){if(confirm("Sign out this display?"))firebase.auth().signOut().then(function(){location.reload()})};
+  $("dso").onclick=function(){if(confirm("Sign out this display?"))firebase.auth().signOut().then(function(){location.replace(location.pathname)})};
   function paint(){
     var u=firebase.auth().currentUser;
     ov.hidden=!(u&&!$("ap").hidden);
@@ -3945,8 +3948,8 @@ PLATFORM="zanganam88@gmail.com";
     }
     // pickers never see a sign-in or sign-out button; the manager taps the clock 7 times quickly to sign this scanner out
     var ct=0,cl=0;
-    $m("mso").onclick=function(){if(confirm("Sign out of this picker account?"))firebase.auth().signOut().then(function(){location.reload()})};
-    $m("mclk").onclick=function(){var n=Date.now();ct=(n-cl<2500)?ct+1:1;cl=n;if(ct>=7){ct=0;if(confirm("Sign this scanner out? Only a manager should do this."))firebase.auth().signOut().then(function(){location.reload()})}};
+    $m("mso").onclick=function(){if(confirm("Sign out of this picker account?"))firebase.auth().signOut().then(function(){location.replace(location.pathname)})};
+    $m("mclk").onclick=function(){var n=Date.now();ct=(n-cl<2500)?ct+1:1;cl=n;if(ct>=7){ct=0;if(confirm("Sign this scanner out? Only a manager should do this."))firebase.auth().signOut().then(function(){location.replace(location.pathname)})}};
     setInterval(function(){draw(false)},1000);draw(true);
     wake();document.addEventListener("visibilitychange",function(){if(!document.hidden)wake()});
     setTimeout(function(){location.reload()},6*60*60*1000);
