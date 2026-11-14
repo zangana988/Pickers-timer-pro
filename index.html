@@ -1744,10 +1744,35 @@ PLATFORM="zanganam88@gmail.com";
    +'body.dkon .dkp>div{max-width:1120px!important}'
    +'body.dkon #mb,body.dkon #exm,body.dkon #wmm,body.dkon #pgm,body.dkon #lbm{display:none!important}'
    +'body.dkon .card,body.dkon .h{box-shadow:0 1px 3px rgba(15,29,51,.08)}'
+   +'#pcols{display:block}'
+   +'body.dkon #pcols{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:24px;align-items:start}'
+   +'body.dkon #pcR>h2:first-child{margin-top:2px}'
+   +'body.dkon #brand>span{display:none!important}'
+   +'body.dkon #bottombar>div:last-child:not(.bg){display:none!important}'
+   +'body.dkon #brand button{margin-left:0!important}'
+   +'#clrw{padding:0 12px 12px}'
    +'}';
   document.head.appendChild(dst);document.body.appendChild(dsb);
   function dkFirst(can){for(var i=0;i<DKI.length;i++)if(can(DKI[i][0]))return DKI[i][0];return "menu"}
+  // ---------- pickers page: two columns on a laptop, no duplicate buttons ----------
+  var pcDone=false;
+  function pcLayout(){
+    var f=$("f"),mg=$("mg"),cnt=$("cnt"),act=$("active"),dn=$("done");
+    if(!f||!mg||!cnt||!act||!dn)return;
+    if(!pcDone){
+      var fin=dn.previousElementSibling,w=document.createElement("div"),L=document.createElement("div"),R=document.createElement("div");
+      w.id="pcols";L.id="pcL";R.id="pcR";
+      f.parentNode.insertBefore(w,f);w.appendChild(L);w.appendChild(R);
+      L.appendChild(f);L.appendChild(mg);R.appendChild(cnt);R.appendChild(act);if(fin&&fin.tagName==="H2")R.appendChild(fin);R.appendChild(dn);
+      pcDone=true;
+    }
+    var cw=$("clrw"),bb=$("bottombar");
+    if(cw&&bb&&!cw.dataset.mv){var g=bb.querySelectorAll(".bg")[1];if(g){g.appendChild(cw);cw.dataset.mv="1"}}
+  }
+  function hideDup(el,hu){if(!el)return;var p=el.parentNode,t=(p&&p!==ap&&p.children.length===1)?p:el;t.hidden=hu}
   function dkSync(){
+    pcLayout();
+    var hu=hubUser&&!ap.hidden;hideDup($("so"),hu);hideDup($("allc"),hu);
     var on=window.innerWidth>=DKW&&!ap.hidden&&hubUser&&!!ROLE&&ROLE!=="display"&&!window.SCANNER;
     document.body.classList.toggle("dkon",on);
     [hub,ex,typeof wm!=="undefined"?wm:null,pg,typeof lb!=="undefined"?lb:null].forEach(function(e){if(e)e.classList.add("dkp")});
