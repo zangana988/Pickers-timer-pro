@@ -1620,7 +1620,8 @@ PLATFORM="zanganam88@gmail.com";
     +'<button id="hm" type="button" style="padding:22px 14px;font-size:20px">Warehouse Map<div id="hms" style="font-size:14px;font-weight:600;margin-top:6px"></div></button>'
     +'<button id="hg" type="button" style="padding:22px 14px;font-size:20px">Palletization guide<div id="hgs" style="font-size:14px;font-weight:600;margin-top:6px"></div></button>'
     +'<button id="hlab" type="button" style="padding:22px 14px;font-size:20px">Pallet labels (A3)<div id="hls" style="font-size:14px;font-weight:600;margin-top:6px"></div></button>'
-    +'<button id="hacc" type="button" hidden style="padding:22px 14px;font-size:20px">Staff access<div style="font-size:14px;font-weight:600;margin-top:6px">Emails, pages, pickers</div></button></div>'
+    +'<button id="hacc" type="button" hidden style="padding:22px 14px;font-size:20px">Staff access<div style="font-size:14px;font-weight:600;margin-top:6px">Emails, pages, pickers</div></button>'
+    +'<button id="hgd" type="button" hidden class="ghost" style="padding:18px 14px;font-size:18px">User guide<div style="font-size:14px;font-weight:600;margin-top:6px">How to use each page</div></button></div>'
     +'<div id="hall" hidden style="margin-top:22px"><button id="hallb" type="button" style="width:100%;padding:16px 14px;font-size:17px">All companies (owner)</button><div class="meta" style="margin-top:6px">You are viewing this company as the owner. Tap to go back to the list of all companies.</div></div>'
     +'<div class="row" style="margin-top:22px"><button id="hpush" type="button" class="ghost">Phone alerts</button><button id="hpin" type="button" class="ghost">Picker PINs</button><button id="hso" type="button" class="ghost">Sign out</button></div></div>';
   document.body.appendChild(hub);
@@ -1698,7 +1699,7 @@ PLATFORM="zanganam88@gmail.com";
     ai.hidden=ab.hidden=ap.hidden||!!window.INBOUND||!ROLE||ROLE==="display"||!!window.SCANNER||/[?&]me=1/.test(location.search);
     if(ap.hidden)page="menu";
     hub.hidden=!(hubU&&page==="menu");ex.hidden=!(can("exp")&&page==="exp");if(typeof wm!=="undefined"&&wm)wm.hidden=!(can("map")&&page==="map");mb.hidden=!hubU;
-    $("hp").hidden=!can("pick");$("he").hidden=!can("exp");$("hm").hidden=!can("map");$("hg").hidden=!can("pal");$("hlab").hidden=!can("lab");$("hpin").hidden=true;$("hacc").hidden=!own;
+    $("hp").hidden=!can("pick");$("he").hidden=!can("exp");$("hm").hidden=!can("map");$("hg").hidden=!can("pal");$("hlab").hidden=!can("lab");$("hpin").hidden=true;$("hacc").hidden=!own;$("hgd").hidden=!hubU;gd.hidden=!(hubU&&page==="guide");if(!gd.hidden)gdDraw();
     var cu=firebase.auth().currentUser;
     $("hall").hidden=!(cu&&(cu.email||"").toLowerCase()===PLATFORM.toLowerCase());
     $("hpush").hidden=!(cu&&(cu.email||"").toLowerCase()===PLATFORM.toLowerCase());
@@ -1716,6 +1717,69 @@ PLATFORM="zanganam88@gmail.com";
   mb.onclick=function(){page="menu";sync()};
   $("exm").onclick=function(){page="menu";sync()};
   $("hso").onclick=function(){$("so").click()};
+  $("hgd").onclick=function(){page="guide";sync()};
+  // ---------- user guide (leaflet): how to use each page, features, what's new ----------
+  // KEEP THIS UP TO DATE: add an entry to GD.log (newest first) and edit the page text whenever something changes.
+  var GD={updated:"14 November 2026",version:"2026.11.14",
+  intro:"ALPHA Z WMS keeps your warehouse in one place. You only see the pages your manager gave you access to. On a laptop the pages are in the bar on the left. On a phone or tablet, tap Menu to come back to the list of pages.",
+  pages:[
+   {k:"start",t:"Signing in and out",
+    steps:["Open the app link and type your email and password, then tap Sign in.","First time? Tap Activate my account, use the email your manager added, choose a password and open the verification link in your email.","Forgot your password? Type your email, tap Forgot password? and follow the link we send.","To leave, tap Sign out (bottom of the left bar, or on the Menu page)."],
+    feat:["Stay signed in on this device keeps you signed in. Untick it on a shared computer.","After 8 hours without activity you are signed out automatically, with a 2-minute warning.","Tablet and picker accounts open their own screen automatically from the same link."]},
+   {k:"pick",t:"Pickers management",
+    steps:["Choose the picker, type the order number and the number of boxes, and choose the box weight. A suggested time appears.","Change the minutes if needed and tap Start timer.","Watch In progress. When the picker finishes, finish the order. Finished orders move to Finished today.","Add or remove pickers under Manage picker list."],
+    feat:["Countdown timers with suggested time based on boxes and weight.","Two-minute check alert so forgotten timers are noticed.","Picker statistics, Records by day or month, and Fix or delete an order.","Sound alerts (turn on per device) and push alerts.","Manager only: History (last 6 months), Dashboard, Company settings and Clear all finished records."]},
+   {k:"exp",t:"Expirations management",
+    steps:["Stock list tab: tap + Add product, or import your Excel list under Import from Excel.","Search by article, product or location. Tap a product to see its details, take it out, or move it to the Broken list.","Broken list tab: shows products taken out or damaged. The manager ticks each record to confirm it was seen.","Tap + Add damaged boxes to record damage by hand."],
+    feat:["Colour-coded expiry warnings and a summary at the top.","Move all expired products to the Broken list in one tap.","Import and export Excel (.xlsx or .csv), or paste cells copied from Excel.","Every change is saved in the history."]},
+   {k:"map",t:"Warehouse Map",
+    steps:["Type an item, SKU, description or location in the search box to find where it is.","Tap Scan to look up an item by scanning its code.","Manager: use Update the map to import Excel or add and change locations.","Manager: Add empty locations by hand by choosing the line, bays and levels."],
+    feat:["Shows pick locations as rows, bays and levels.","Even bays go to Row 1 and odd bays to Row 2.","Export the whole map to Excel."]},
+   {k:"pal",t:"Palletization guide",
+    steps:["Type the article number or the product name in the search box.","The pallet appears in 3D with the layers and boxes per layer. Drag the picture to turn it.","Read the numbers: boxes per layer, number of layers and total boxes."],
+    feat:["Euro pallet and Block pallet shapes.","Read only accounts can search and view. Read & write accounts can add, edit, delete and import products.","Import your product list from Excel."]},
+   {k:"lab",t:"Pallet labels",
+    steps:["Type the article code. The product name, size and pick location fill in from your list.","Type the number of boxes and the expiry date by hand.","Choose your nickname and type your password (only when your manager set up label staff).","Tap Print. Use A3 landscape paper in the printer."],
+    feat:["Text fills the whole label edge to edge, in the order: boxes, name, size, expiry, then one small line with your nickname, location and date and time.","After you enter your password it stays active for 15 minutes without activity. Tap Lock now to lock it sooner.","Read only accounts can enter and print. Read & write accounts can add, edit, delete and import products.","The label staff list (nicknames and passwords) is kept by the manager in Staff access."]},
+   {k:"own",t:"Staff access (manager)",
+    steps:["Type the full name and email, tick the pages this person may open, and choose the Access level.","Tap Give access. The person activates their account from the sign-in page.","Tap Access on a row to change pages or the level later. Tap Remove to lock someone out immediately.","Picker PINs and Label staff (nicknames and passwords) are on the same page."],
+    feat:["Read only: can enter information and print. Read & write: can also add, edit, delete and import.","Display tablet only and Picker scanner logins for the warehouse screens.","Changes apply the next time the person opens the app."]},
+   {k:"own",t:"Tablets and picker scanners (manager)",
+    steps:["Add the tablet or scanner email in Staff access and tick Display tablet only or Picker scanner login.","Sign in with that email on the screen. It opens the right view by itself, with no special link."],
+    feat:["The tablet shows the running timers for the pickers.","The picker scanner shows one picker their own orders."]}
+  ],
+  log:[
+   {d:"14 November 2026",items:["New: User guide page.","Sign-in screen redesigned, with Show password, Stay signed in and automatic sign-out after 8 hours.","Left menu bar on laptops, and a tidier two-column Pickers management page.","Refresh button removed (except on the pickers' tablet).","Tablet accounts open the tablet screen from the normal link."]},
+   {d:"13 November 2026",items:["Access levels: Read only or Read & write for each email.","Pallet labels: nicknames and passwords, password stays active for 15 minutes.","Staff access has its own page with Picker PINs and label staff.","Menu of allowed pages for inbound and other accounts."]}
+  ]};
+  var gd=document.createElement("div");gd.hidden=true;gd.style.cssText=FULL+";z-index:46";
+  gd.innerHTML='<div style="max-width:820px;margin:0 auto"><div class="row" style="margin:0 0 10px"><h1 style="margin:0;font-size:22px;display:flex;align-items:center;gap:8px">'+badge(28)+'<span>User guide</span></h1><span style="display:flex;gap:8px"><button id="gdp" type="button" class="ghost">Print leaflet</button><button id="gdm" type="button" class="ghost">Menu</button></span></div><div id="gdb"></div></div>';
+  document.body.appendChild(gd);
+  function gdAllowed(p){return p.k==="start"||(p.k==="own"?ROLE==="owner":canP(p.k))}
+  function gdSec(p,open){
+    var h='<details'+(open?' open':'')+' style="margin:0 0 10px"><summary style="font-weight:800;font-size:18px">'+esc(p.t)+'</summary><div style="padding:6px 4px 4px"><div style="font-weight:700;margin:8px 0 4px">How to use it</div><ol style="margin:0;padding-left:22px;line-height:1.5">';
+    p.steps.forEach(function(x){h+='<li>'+esc(x)+'</li>'});
+    h+='</ol><div style="font-weight:700;margin:12px 0 4px">Features</div><ul style="margin:0;padding-left:22px;line-height:1.5">';
+    p.feat.forEach(function(x){h+='<li>'+esc(x)+'</li>'});
+    return h+'</ul></div></details>';
+  }
+  function gdLog(){return GD.log.map(function(e){return '<div style="margin:0 0 10px"><b>'+esc(e.d)+'</b><ul style="margin:4px 0 0;padding-left:22px;line-height:1.5">'+e.items.map(function(i){return '<li>'+esc(i)+'</li>'}).join("")+'</ul></div>'}).join("")}
+  function gdDraw(){
+    var h='<div class="meta" style="margin:0 0 14px;line-height:1.5">'+esc(GD.intro)+'<br>Guide version '+esc(GD.version)+' &middot; last updated '+esc(GD.updated)+'</div>';
+    GD.pages.forEach(function(p,i){if(gdAllowed(p))h+=gdSec(p,i===0)});
+    h+='<details style="margin:0 0 10px"><summary style="font-weight:800;font-size:18px">What is new</summary><div style="padding:8px 4px">'+gdLog()+'</div></details>';
+    $("gdb").innerHTML=h;
+  }
+  $("gdm").onclick=function(){page="menu";sync()};
+  $("gdp").onclick=function(){
+    var h='<h1 style="margin:0 0 4px">ALPHA Z WMS &ndash; User guide</h1><p style="color:#555;margin:0 0 16px">'+esc(GD.intro)+' Version '+esc(GD.version)+', updated '+esc(GD.updated)+'.</p>';
+    GD.pages.forEach(function(p){if(gdAllowed(p))h+=gdSec(p,true).replace("<details","<div").replace("</details>","</div>").replace(/<summary[^>]*>(.*?)<\/summary>/,'<h2 style="margin:18px 0 4px;font-size:20px">$1</h2>')});
+    h+='<h2 style="margin:18px 0 4px;font-size:20px">What is new</h2>'+gdLog();
+    var w=window.open("","_blank");if(!w){alert("Allow pop-ups to print the leaflet.");return}
+    w.document.write('<!doctype html><meta charset="utf-8"><title>ALPHA Z WMS user guide</title><body style="font:15px/1.5 -apple-system,Segoe UI,Arial,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;color:#111">'+h+'</body>');
+    w.document.close();setTimeout(function(){try{w.print()}catch(e){}},300);
+  };
+
   // ---------- laptop / desktop layout: menu in a left bar ----------
   var DKW=1000,dsb=document.createElement("div");dsb.id="dsb";
   var DKI=[["pick","hp","Pickers management",'<path d="M16 11a4 4 0 1 0-8 0M4 20c0-3.5 3.5-6 8-6s8 2.5 8 6"/>'],
@@ -1742,7 +1806,7 @@ PLATFORM="zanganam88@gmail.com";
    +'#dsb .dku{font-size:13px;color:#cdd8ec;padding:0 8px 8px;word-break:break-all}'
    +'body.dkon .dkp{left:240px!important}'
    +'body.dkon .dkp>div{max-width:1120px!important}'
-   +'body.dkon #mb,body.dkon #exm,body.dkon #wmm,body.dkon #pgm,body.dkon #lbm{display:none!important}'
+   +'body.dkon #mb,body.dkon #exm,body.dkon #wmm,body.dkon #pgm,body.dkon #lbm,body.dkon #gdm{display:none!important}'
    +'body.dkon .card,body.dkon .h{box-shadow:0 1px 3px rgba(15,29,51,.08)}'
    +'#pcols{display:block}'
    +'body.dkon #pcols{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:24px;align-items:start}'
@@ -1775,7 +1839,7 @@ PLATFORM="zanganam88@gmail.com";
     var hu=hubUser&&!ap.hidden;hideDup($("so"),hu);hideDup($("allc"),hu);
     var on=window.innerWidth>=DKW&&!ap.hidden&&hubUser&&!!ROLE&&ROLE!=="display"&&!window.SCANNER;
     document.body.classList.toggle("dkon",on);
-    [hub,ex,typeof wm!=="undefined"?wm:null,pg,typeof lb!=="undefined"?lb:null].forEach(function(e){if(e)e.classList.add("dkp")});
+    [hub,ex,typeof wm!=="undefined"?wm:null,pg,typeof lb!=="undefined"?lb:null,gd].forEach(function(e){if(e)e.classList.add("dkp")});
     var sx=$("sx"),a=sx&&sx.parentNode;while(a&&a!==document.body){if(a.style&&a.style.position==="fixed"){a.classList.add("dkp");break}a=a.parentNode}
     if(!on)return;
     var cu=firebase.auth().currentUser,em=cu?cu.email:"",own=ROLE==="owner";
@@ -1783,6 +1847,7 @@ PLATFORM="zanganam88@gmail.com";
     DKI.forEach(function(x){if(canP(x[0]))h+='<button type="button" class="dki'+(page===x[0]?" on":"")+'" data-dk="'+x[1]+'"><svg viewBox="0 0 24 24">'+x[3]+'</svg>'+x[2]+'</button>'});
     if(own)h+='<div class="dkh">Manage</div><button type="button" class="dki" data-dk="hacc"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>Staff access</button>';
     if(!$("hall").hidden)h+='<button type="button" class="dki" data-dk="hall"><svg viewBox="0 0 24 24"><path d="M4 20V8l8-4 8 4v12M9 20v-6h6v6"/></svg>All companies</button>';
+    h+='<div class="dkh">Help</div><button type="button" class="dki'+(page==="guide"?" on":"")+'" data-dk="hgd"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11"/></svg>User guide</button>';
     h+='</div><div class="dkf"><div class="dku">'+esc((window.MEMNAME?window.MEMNAME+" · ":"")+em)+'</div><button type="button" class="dki" data-dk="so"><svg viewBox="0 0 24 24"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg>Sign out</button></div>';
     if(dsb.dataset.sig!==h){dsb.dataset.sig=h;dsb.innerHTML=h}
   }
