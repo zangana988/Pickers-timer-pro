@@ -3638,6 +3638,86 @@ PLATFORM="zanganam88@gmail.com";
   sync();
 })();
 
+// ---------- professional sign-in screen ----------
+(function(){
+  var lg=$("lg"),lk=$("lk"),rg=$("rg"),gt=$("gt"),wn=$("wn");
+  if(!lg||!rg||!gt)return;
+  var LG=(document.querySelector('link[rel="icon"]')||{}).href||"";
+  var logo=LG?'<img src="'+LG+'" width="56" height="56" alt="" style="border-radius:20%">':"";
+  // the "owner / company" question is gone: everybody signs in the same way
+  var ch=$("chooser");if(ch){ch.hidden=true;new MutationObserver(function(){if(!ch.hidden)ch.hidden=true}).observe(ch,{attributes:true,attributeFilter:["hidden"]})}
+  var st=document.createElement("style");
+  st.textContent='#lsh{position:fixed;top:0;right:0;bottom:0;left:0;z-index:60;display:none;background:var(--bg);color:var(--ink);overflow:auto}'
+  +'#lsh.on{display:flex}'
+  +'#lsh .lbr{flex:1.1;background:linear-gradient(155deg,#0f1d33,#1b3d77);color:#fff;padding:56px 60px;display:flex;flex-direction:column;justify-content:space-between;min-width:0}'
+  +'#lsh .lbt{font-weight:900;letter-spacing:.08em;font-size:34px;line-height:1.1;margin-top:18px}#lsh .lbt span{color:#5bb4ff}'
+  +'#lsh .ltg{font-size:19px;color:#c4d3ee;margin-top:14px;max-width:420px;line-height:1.45}'
+  +'#lsh .lbr ul{list-style:none;margin:34px 0 0;padding:0;display:grid;gap:14px;font-size:16px;color:#e2ebfa}'
+  +'#lsh .lbr li:before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:#5bb4ff;margin-right:12px}'
+  +'#lsh .lfe{font-size:13px;color:#8fa6cc}'
+  +'#lsh .lpn{flex:1;display:flex;align-items:center;justify-content:center;padding:32px 20px;min-width:0}'
+  +'#lsh .lcd{width:100%;max-width:410px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px 28px;box-shadow:0 14px 44px rgba(15,29,51,.14)}'
+  +'#lsh .lcd h2{margin:0 0 4px;font-size:26px;color:var(--ink)}#lsh .lcd form{border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;border-radius:0!important}#lsh .lcd button.ghost{box-shadow:none}#lsh .lcd .lsub{color:var(--mute);font-size:15px;margin:0 0 16px;line-height:1.4}'
+  +'#lsh .lcd form,#lsh .lcd #lk{display:flex;flex-direction:column;gap:12px;margin:0}'
+  +'#lsh .lcd #lt{display:none}'
+  +'#lsh .lcd #lk{flex-direction:row;justify-content:space-between;gap:8px;margin-top:14px}'
+  +'#lsh .lcd #lk button{width:auto;flex:1;min-height:0;padding:10px 8px;font-size:14px}'
+  +'#lsh .lcd #lback{display:none}'
+  +'#lsh .lcd label{position:relative}'
+  +'#lsh .lpw{position:absolute;right:6px;bottom:6px;width:auto!important;min-height:0!important;padding:6px 10px!important;font-size:13px!important}'
+  +'#lsh .lcd #wn{margin:0 0 12px;padding:10px 12px;border-radius:10px;background:var(--badbg);font-size:14px}'
+  +'#lsh .lcd #wn[hidden]{display:none}'
+  +'@media (max-width:900px){#lsh{flex-direction:column}#lsh .lbr{flex:none;padding:22px 24px}#lsh .lbr ul,#lsh .ltg,#lsh .lfe{display:none}#lsh .lbt{font-size:24px;margin-top:10px}#lsh .lpn{align-items:flex-start;padding:22px 16px}}';
+  document.head.appendChild(st);
+  var sh=document.createElement("div");sh.id="lsh";
+  sh.innerHTML='<div class="lbr"><div>'+logo+'<div class="lbt">ALPHA Z <span>WMS</span></div><div class="ltg">Warehouse management, in one place.</div>'
+   +'<ul><li>Pickers and order timers</li><li>Expirations and warehouse map</li><li>Palletization guide and pallet labels</li></ul></div>'
+   +'<div class="lfe">&copy; '+new Date().getFullYear()+' ALPHA Z WMS &middot; Need help? Contact your manager.</div></div>'
+   +'<div class="lpn"><div class="lcd" id="lcd"><h2 id="lh2">Sign in</h2><div class="lsub" id="lsb">Use the email your manager added.</div></div></div>';
+  document.body.appendChild(sh);
+  var cd=$("lcd");[wn,lg,lk,rg,gt].forEach(function(e){if(e)cd.appendChild(e)});
+  // password show / hide
+  function eye(inp){
+    var b=document.createElement("button");b.type="button";b.className="ghost lpw";b.textContent="Show";
+    b.onclick=function(){var s=inp.type==="password";inp.type=s?"text":"password";b.textContent=s?"Hide":"Show"};
+    inp.parentNode.appendChild(b);inp.style.paddingRight="64px";
+  }
+  eye($("lp"));eye($("rp"));
+  // wording
+  $("lreg").textContent="Activate my account";$("lfp").textContent="Forgot password?";
+  var rb=rg.querySelector("button[type=submit]");if(rb)rb.textContent="Activate my account";
+  $("rbk").textContent="Back to sign in";
+  var gr=$("gr");if(gr)gr.textContent="Resend verification email";
+  // remember the last email
+  try{var le=localStorage.getItem("alphaLastEmail");if(le&&!$("le").value)$("le").value=le}catch(e){}
+  // friendly sign-in with a waiting state
+  lg.onsubmit=function(e){
+    e.preventDefault();var em=$("le").value.trim(),btn=lg.querySelector("button[type=submit]");
+    btn.disabled=true;btn.textContent="Signing in...";wn.hidden=true;
+    firebase.auth().signInWithEmailAndPassword(em,$("lp").value).then(function(){
+      try{localStorage.setItem("alphaLastEmail",em)}catch(x){}
+      $("lp").value="";
+    }).catch(function(x){
+      var c=x&&x.code,m="Wrong email or password. Check them and try again.";
+      if(c==="auth/too-many-requests")m="Too many attempts. Wait a few minutes, or tap Forgot password to set a new one.";
+      else if(c==="auth/network-request-failed")m="No internet connection. Check the network and try again.";
+      else if(c==="auth/user-disabled")m="This account has been switched off. Ask your manager.";
+      wn.textContent=m;wn.hidden=false;
+    }).then(function(){btn.disabled=false;btn.textContent="Sign in"});
+  };
+  // which screen is showing
+  function paint(){
+    var l=!lg.hidden,r=!rg.hidden,g=!gt.hidden&&gt.style.display!=="none";
+    sh.classList.toggle("on",(l||r||g)&&$("ap").hidden);
+    $("lh2").textContent=r?"Activate my account":g?"Almost there":"Sign in";
+    $("lsb").textContent=r?"Use the email your manager added, then choose your own password.":g?"":"Use the email your manager added.";
+    $("lsb").style.display=g?"none":"";
+  }
+  var mo=new MutationObserver(paint);
+  [lg,rg,gt,$("ap")].forEach(function(e){mo.observe(e,{attributes:true,attributeFilter:["hidden","style"]})});
+  paint();
+})();
+
 // Picker scanner screen (?me=1) and supervisor notifications (finished / more time)
 (function(){
   var Q=new URLSearchParams(location.search),ME=Q.get("me")==="1";
